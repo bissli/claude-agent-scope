@@ -40,9 +40,13 @@ Notes
   opus-cap, since the seat count reads off it and a synthesize agent
   cannot fix it. Refusals apply in the order mismatch, unfixed cycle,
   Opus cap, xhigh seat.
-- A cycle is one user prompt: the payload's prompt_id, else the uuid of
-  the last user message in the transcript. A launch whose cycle cannot
-  be keyed is allowed and logged.
+- A cycle is one user prompt. The key is the payload's prompt_id,
+  unless the transcript shows that id stamped on a system record, a
+  background task's completion re-entering the turn, in which case the
+  key is the promptId of the last human record. With no prompt_id the
+  key is that human record's promptId or uuid, else the uuid of the
+  last user record from a CLI that stamps no origin. A launch whose
+  cycle cannot be keyed is allowed and logged.
 - An Opus-tier launch with no header is denied. Work outside a review
   declares round swarm, a fourth round counted and capped like review
   on its own counter. A cheap launch may omit the header, and a fable
@@ -221,8 +225,8 @@ def allow(event: dict[str, Any]) -> None:
     log_event({**event, 'decision': 'allow'})
 
 
-def user_uuid(line: bytes) -> str | None:
-    """Return the uuid of a transcript line that is a real user message.
+def prompt_record(line: bytes) -> tuple[str, str | None, str | None] | None:
+    """Classify one transcript line as a prompt record.
 
     Parameters
     ----------
@@ -231,16 +235,26 @@ def user_uuid(line: bytes) -> str | None:
 
     Returns
     -------
-    str or None
-        The record's uuid when its type is user and none of its content
-        blocks is a tool_result. None for anything else, including a
-        line that is not a JSON object.
+    tuple[str, str or None, str or None] or None
+        (kind, promptId, uuid) for a user record with no tool_result
+        block: 'human' when origin.kind is human, 'system' when it is
+        any other value, 'legacy' when the record has no origin and is
+        not meta. None for every other line, a meta record and a line
+        that is not a JSON object included.
+
+    Notes
+    -----
+    - The CLI stamps origin.kind on a user record: human for a typed or
+      queued prompt, task-notification for a background task's
+      completion, auto-continuation and peer for other re-entries. A
+      command expansion or a hook message is a meta record under the
+      prompt that raised it.
     """
     try:
         item = json.loads(line.decode('utf-8', 'replace'))
     except (TypeError, ValueError):
         return None
-    if not isinstance(item, dict):
+    if not isinstance(item, dict) or item.get('type') != 'user':
         return None
     message = item.get('message')
     content = message.get('content') if isinstance(message, dict) else None
@@ -248,24 +262,32 @@ def user_uuid(line: bytes) -> str | None:
     is_tool_result = any(
         isinstance(block, dict) and block.get('type') == 'tool_result'
         for block in blocks)
-    if item.get('type') == 'user' and not is_tool_result and item.get('uuid'):
-        return str(item['uuid'])
-    return None
+    if is_tool_result:
+        return None
+    prompt_id = str(item['promptId']) if item.get('promptId') else None
+    uuid = str(item['uuid']) if item.get('uuid') else None
+    origin = item.get('origin')
+    if isinstance(origin, dict) and origin.get('kind'):
+        kind = 'human' if origin['kind'] == 'human' else 'system'
+        return kind, prompt_id, uuid
+    if item.get('isMeta'):
+        return None
+    return 'legacy', prompt_id, uuid
 
 
-def latest_user_uuid(transcript: str) -> str | None:
-    """Return the uuid of the last real user message in a JSONL transcript.
+def reversed_lines(transcript: str) -> Iterator[bytes]:
+    """Yield a transcript's lines from the last to the first.
 
     Parameters
     ----------
     transcript : str
         Path to the session transcript named in the hook payload.
 
-    Returns
-    -------
-    str or None
-        The uuid, or None when the file cannot be opened or holds no user
-        message.
+    Yields
+    ------
+    bytes
+        One line without its newline. Nothing when the file cannot be
+        opened.
 
     Notes
     -----
@@ -288,12 +310,8 @@ def latest_user_uuid(transcript: str) -> str | None:
                 continue
             parts = (chunk + b''.join(reversed(pending))).split(b'\n')
             pending = [parts[0]]
-            for line in reversed(parts[1:]):
-                found = user_uuid(line)
-                if found:
-                    return found
-        return user_uuid(b''.join(reversed(pending)))
-    return None
+            yield from reversed(parts[1:])
+        yield b''.join(reversed(pending))
 
 
 def turn_key(hook_input: dict[str, Any]) -> str | None:
@@ -307,12 +325,46 @@ def turn_key(hook_input: dict[str, Any]) -> str | None:
     Returns
     -------
     str or None
-        prompt_id when the payload carries one, else the uuid of the last
-        user message in transcript_path, else None.
+        The payload's prompt_id, unless the transcript shows it stamped
+        on a system record, in which case the promptId, else the uuid,
+        of the last human record; with no prompt_id, that human key,
+        else the uuid of the last user record that carries no origin;
+        None when nothing resolves.
+
+    Notes
+    -----
+    - The CLI mints a new prompt_id when a background task's completion
+      re-enters the main loop, so the payload names the human prompt
+      only until the first task notification of the turn. Keying on the
+      human record behind the system one keeps the cycle to the prompt.
+    - A prompt_id no system record carries is kept as it is: the human
+      record may not have reached the file yet, and the payload is then
+      the only witness to the turn.
+    - A system or meta record never opens a cycle on either path.
+    - The scan stops at the first human record, so an Opus launch pays
+      for the bytes since the current prompt; a cheap launch never
+      reaches it.
     """
-    if hook_input.get('prompt_id'):
-        return str(hook_input['prompt_id'])
-    return latest_user_uuid(str(hook_input.get('transcript_path') or ''))
+    prompt_id = str(hook_input['prompt_id']) if hook_input.get('prompt_id') else None
+    human_key = legacy_uuid = None
+    prompt_id_on_system = False
+    for line in reversed_lines(str(hook_input.get('transcript_path') or '')):
+        record = prompt_record(line)
+        if record is None:
+            continue
+        kind, record_prompt_id, uuid = record
+        if kind == 'human':
+            human_key = record_prompt_id or uuid
+            if human_key:
+                break
+        elif kind == 'system':
+            if prompt_id is not None and record_prompt_id == prompt_id:
+                prompt_id_on_system = True
+        elif legacy_uuid is None:
+            legacy_uuid = uuid
+    if prompt_id and not prompt_id_on_system:
+        return prompt_id
+    return human_key or legacy_uuid or prompt_id
 
 
 def parse_header(prompt: str) -> tuple[dict[str, str] | None, str | None]:

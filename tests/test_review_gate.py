@@ -117,10 +117,20 @@ def reason(output):
     return output['hookSpecificOutput']['permissionDecisionReason']
 
 
-def transcript_line(kind, uuid, content):
+def transcript_line(kind, uuid, content, *, origin=None, prompt_id=None, meta=False):
     """Return one transcript JSONL record.
+
+    origin becomes origin.kind, prompt_id becomes promptId, and meta sets
+    isMeta, each omitted when not given, as the CLI writes them.
     """
-    return json.dumps({'type': kind, 'uuid': uuid, 'message': {'content': content}})
+    record = {'type': kind, 'uuid': uuid, 'message': {'content': content}}
+    if origin is not None:
+        record['origin'] = {'kind': origin}
+    if prompt_id is not None:
+        record['promptId'] = prompt_id
+    if meta:
+        record['isMeta'] = True
+    return json.dumps(record)
 
 
 def last_log(gate):
@@ -1201,7 +1211,8 @@ def test_fallback_uses_the_last_user_message_not_a_tool_result(gate, tmp_path):
         path raise ValueError past the OSError guard.
     Oracle: u1, an assistant row, a scalar row, an array row, a
         tool_result u2 -> u1; appending u3 -> u3; a missing file and a
-        NUL path -> None; prompt_id wins over the transcript.
+        NUL path -> None; a prompt_id no system record carries wins over
+        the transcript.
     """
     path = tmp_path / 'transcript.jsonl'
     lines = [
@@ -1219,6 +1230,97 @@ def test_fallback_uses_the_last_user_message_not_a_tool_result(gate, tmp_path):
     assert gate.turn_key({'transcript_path': str(tmp_path / 'none.jsonl')}) is None
     assert gate.turn_key({'transcript_path': 'a\x00b'}) is None
     assert gate.turn_key({'prompt_id': 'p-7', 'transcript_path': str(path)}) == 'p-7'
+
+
+def test_task_notification_prompt_id_resolves_to_the_human_prompt(gate, tmp_path):
+    """Verify a prompt_id minted for a task notification keys the human prompt.
+
+    Mutation: keying on the payload's prompt_id whenever it is present,
+        or keying on the transcript's human record whenever the two
+        differ, which moves a launch whose human record has not reached
+        the file onto the previous prompt.
+    Oracle: human p1, tool output, a task-notification stamped p2 ->
+        payload p2 keys p1 and payload p1 keys p1; a payload p9 that no
+        record carries stays p9; a new human p3 keys p3.
+    """
+    path = tmp_path / 'transcript.jsonl'
+    lines = [
+        transcript_line(
+            'user', 'u1', 'review this', origin='human', prompt_id='p1'),
+        transcript_line('assistant', 'a1', []),
+        transcript_line('user', 'u2', [{'type': 'tool_result', 'content': 'x'}]),
+        transcript_line(
+            'user', 'u3', '<task-notification/>',
+            origin='task-notification', prompt_id='p2'),
+        ]
+    path.write_text('\n'.join(lines) + '\n', encoding='utf-8')
+    assert gate.turn_key({'prompt_id': 'p2', 'transcript_path': str(path)}) == 'p1'
+    assert gate.turn_key({'prompt_id': 'p1', 'transcript_path': str(path)}) == 'p1'
+    assert gate.turn_key({'prompt_id': 'p9', 'transcript_path': str(path)}) == 'p9'
+    with path.open('a', encoding='utf-8') as stream:
+        stream.write(
+            transcript_line('user', 'u4', 'now fix it', origin='human', prompt_id='p3')
+            + '\n')
+    assert gate.turn_key({'prompt_id': 'p3', 'transcript_path': str(path)}) == 'p3'
+
+
+def test_task_notification_turn_does_not_reset_the_cap(gate, tmp_path):
+    """Verify the Opus cap survives a background task re-entering the turn.
+
+    Mutation: a new payload prompt_id opening a new cycle while the
+        transcript shows it stamped on a task-notification record.
+    Oracle: three Opus launches under the human prompt p1, then a
+        task-notification stamped p2 -> a fourth launch carrying p2 is
+        denied as #4; a new human prompt p3 is then allowed.
+    """
+    path = tmp_path / 'transcript.jsonl'
+    path.write_text(
+        transcript_line('user', 'u1', 'review', origin='human', prompt_id='p1')
+        + '\n',
+        encoding='utf-8')
+    first = agent_input(header(), prompt_id='p1', transcript_path=path)
+    assert all(gate.gate_agent(first) is None for _ in range(3))
+    with path.open('a', encoding='utf-8') as stream:
+        stream.write(
+            transcript_line(
+                'user', 'u2', '<task-notification/>',
+                origin='task-notification', prompt_id='p2')
+            + '\n')
+    fourth = agent_input(header(), prompt_id='p2', transcript_path=path)
+    assert 'this would be #4' in reason(gate.gate_agent(fourth))
+    with path.open('a', encoding='utf-8') as stream:
+        stream.write(
+            transcript_line('user', 'u3', 'next', origin='human', prompt_id='p3')
+            + '\n')
+    third = agent_input(header(), prompt_id='p3', transcript_path=path)
+    assert gate.gate_agent(third) is None
+
+
+def test_fallback_skips_system_and_meta_records(gate, tmp_path):
+    """Verify the no-prompt_id path opens no cycle on a system or meta record.
+
+    Mutation: returning the first user record that is not a tool_result,
+        which keys the cycle on a task notification or a command
+        expansion, or stopping at a legacy record when a human record
+        stands behind it.
+    Oracle: legacy u1, a meta expansion u2, a task-notification u3 ->
+        u1; a human record stamped p0 prepended -> p0.
+    """
+    path = tmp_path / 'transcript.jsonl'
+    lines = [
+        transcript_line('user', 'u1', 'hi'),
+        transcript_line(
+            'user', 'u2', '<command-message>x</command-message>',
+            meta=True, prompt_id='p1'),
+        transcript_line(
+            'user', 'u3', '<task-notification/>',
+            origin='task-notification', prompt_id='p2'),
+        ]
+    path.write_text('\n'.join(lines) + '\n', encoding='utf-8')
+    assert gate.turn_key({'transcript_path': str(path)}) == 'u1'
+    human = transcript_line('user', 'u0', 'first', origin='human', prompt_id='p0')
+    path.write_text('\n'.join([human, *lines]) + '\n', encoding='utf-8')
+    assert gate.turn_key({'transcript_path': str(path)}) == 'p0'
 
 
 def test_fallback_scans_past_a_large_tail(gate, tmp_path):
