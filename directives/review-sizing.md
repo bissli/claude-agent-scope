@@ -85,8 +85,9 @@ Hold the text once launched:
 - Freeze the text under review. A rewrite after launch - the author's
   or the formatter's - invalidates the review. Keep a `git diff`
   snapshot of the paths under review; hold the edit until the agents
-  report. A kill frees no slot, so a relaunch must fit what the round
-  has left.
+  report. A launch that dies, killed, interrupted, or lost with the
+  session, frees no slot, so a relaunch must fit what the round has
+  left.
 - One review at a time. Stop a round before relaunching one that
   answers the same question.
 - Re-check every surviving finding against the file before acting on
