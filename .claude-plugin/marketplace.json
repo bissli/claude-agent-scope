@@ -1,0 +1,14 @@
+{
+  "name": "agent-scope",
+  "description": "Six subagent tiers that pin model and effort, a PreToolUse gate that caps Opus fan-out per review round, and the directives that pick a tier",
+  "owner": {
+    "name": "bissli"
+  },
+  "plugins": [
+    {
+      "name": "agent-scope",
+      "source": "./",
+      "description": "Six subagent tiers that pin model and effort, a PreToolUse gate that caps Opus fan-out per review round, and the directives that pick a tier"
+    }
+  ]
+}
