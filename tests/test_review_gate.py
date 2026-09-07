@@ -39,6 +39,11 @@ def header(round_name='review', opus_cap='3', derive=None):
     return '\n'.join([*lines, '</review-gate>', '', 'Review this text.'])
 
 
+HIGH_REMEDY = (
+    'agent-scope:opus-high, or agent-scope:fable-high where the brief fails to '
+    'split')
+
+
 def agent_input(
     prompt,
     *,
@@ -419,13 +424,16 @@ def test_prefixed_inheriting_names_are_denied_as_non_tiers(gate, subagent_type):
     Mutation: testing INHERITING_TYPES on the stripped name, so
         agent-scope:general-purpose is refused for inheriting the session
         effort, a reason that is false of a name no agent carries.
-    Oracle: the denial names the launch as not a tier, lists the eight,
-        and never says inherit.
+    Oracle: the denial names the launch as not a tier, lists all eight
+        tiers, and never says inherit.
     """
     output = gate.gate_agent(agent_input(header(), subagent_type=subagent_type))
     assert decision(output) == 'deny'
     assert f'{subagent_type} is not a tier' in reason(output)
-    assert 'agent-scope:opus-medium' in reason(output)
+    assert (
+        'agent-scope:opus-medium, agent-scope:opus-high, agent-scope:opus-xhigh, '
+        'agent-scope:fable-high, agent-scope:fable-xhigh, agent-scope:sonnet-medium, '
+        'agent-scope:sonnet-high, agent-scope:haiku' in reason(output))
     assert 'inherit' not in reason(output)
 
 
@@ -817,7 +825,8 @@ def test_unknown_derive_kind_is_denied_on_any_marked_agent(gate, subagent_type):
     Mutation: accepting any token as a kind, or validating the value
         only on Opus-tier launches so a cheap agent carries junk metadata.
     Oracle: derive: importance is denied on opus-xhigh and on sonnet-high
-        alike, naming the six kinds and opus-high; no state is written.
+        alike, naming the six kinds and both high tiers with the split
+        condition; no state is written.
     """
     payload = agent_input(header(derive='importance'), subagent_type=subagent_type)
     output = gate.gate_agent(payload)
@@ -825,7 +834,7 @@ def test_unknown_derive_kind_is_denied_on_any_marked_agent(gate, subagent_type):
     assert 'invalid derive: importance' in reason(output)
     assert 'formula, bound, proof, equivalence, interleaving, joint-behavior' in (
         reason(output))
-    assert 'use agent-scope:opus-high' in reason(output)
+    assert HIGH_REMEDY in reason(output)
     assert not state_file(gate).exists()
 
 
@@ -1747,14 +1756,18 @@ def test_synthesize_holds_two_capped_agents_across_families(gate):
 
 
 def test_every_high_remedy_names_both_high_tiers(gate):
-    """Verify each refusal that offers a high tier offers fable-high too.
+    """Verify each Agent-path refusal that offers a high tier offers both.
 
     Mutation: naming opus-high alone in the remedy, which sends a brief
-        that fails to split to a tier that splits it.
+        that fails to split to a tier that splits it; or offering
+        fable-high without the split condition, which sends a brief
+        refused for want of a seat to Fable on budget grounds.
     Oracle: the kind-missing, unknown-kind, unfixed-synthesize, no-seat,
-        and spent-seat refusals each name opus-high or fable-high.
+        and spent-seat refusals each carry the two-tier remedy with its
+        condition, HIGH_REMEDY, spelled out here rather than read from
+        the gate.
     """
-    both = 'agent-scope:opus-high or agent-scope:fable-high'
+    both = HIGH_REMEDY
     assert both in reason(gate.gate_agent(fable_xhigh(derive=None)))
     assert both in reason(gate.gate_agent(xhigh(derive='breadth')))
     assert both in reason(gate.gate_agent(xhigh('synthesize', None)))

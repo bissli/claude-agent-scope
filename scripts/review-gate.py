@@ -39,13 +39,11 @@ Notes
   is taken. The cycle's opus-cap sets its derive seats, none at 3, one
   at 6, two at 9, on one counter the two tiers share across the rounds;
   a launch past the seats is denied naming the high tiers and takes no
-  slot.
-  Two deriving briefs declare opus-cap 9, which seats both, so the
-  tiers do not compete. A deriving synthesize
-  agent is denied until a review, verify, or swarm agent has fixed the
-  opus-cap, since the seat count reads off it and a synthesize agent
-  cannot fix it. Refusals apply in the order mismatch, unfixed cycle,
-  round cap, derive seat.
+  slot. Two deriving briefs declare opus-cap 9, which seats both, so the
+  tiers do not compete. A deriving synthesize agent is denied until a
+  review, verify, or swarm agent has fixed the opus-cap, since the seat
+  count reads off it and a synthesize agent cannot fix it. Refusals
+  apply in the order mismatch, unfixed cycle, round cap, derive seat.
 - A cycle is one user prompt. The key is the payload's prompt_id,
   unless the transcript shows that id stamped on a system record, a
   background task's completion re-entering the turn, in which case the
@@ -125,11 +123,14 @@ OPUS_TIERS = ('opus-medium', 'opus-high', 'opus-xhigh')
 FABLE_TIERS = ('fable-high', 'fable-xhigh')
 CAPPED_TIERS = OPUS_TIERS + FABLE_TIERS
 SEAT_TIERS = ('opus-xhigh', 'fable-xhigh')
-HIGH_TIERS = ('opus-high', 'fable-high')
 CHEAP_TIERS = ('sonnet-medium', 'sonnet-high', 'haiku')
 TIERS = CAPPED_TIERS + CHEAP_TIERS
 SEAT_TIERS_TEXT = ' and '.join(TIER_PREFIX + tier for tier in SEAT_TIERS)
-HIGH_TIERS_TEXT = ' or '.join(TIER_PREFIX + tier for tier in HIGH_TIERS)
+# The high tiers are offered together, with the condition that picks
+# between them: without it a seat refusal reads as a push to Fable.
+HIGH_TIERS_TEXT = (
+    f'{TIER_PREFIX}opus-high, or {TIER_PREFIX}fable-high where the brief fails '
+    'to split')
 FABLE_TIERS_TEXT = ' or '.join(TIER_PREFIX + tier for tier in FABLE_TIERS)
 TIERS_TEXT = ', '.join(TIER_PREFIX + tier for tier in TIERS)
 INHERITING_TYPES = {'', 'general-purpose'}
@@ -753,11 +754,11 @@ def refusal_reason(slot: Reservation, round_name: str) -> str:
       derivation, since the documented default of 3 seats none.
     - A high tier is offered for a deriving brief only where an oracle
       outside the agent can check it, fable-high where the brief fails to
-      split. Where none can, the remedy is to
-      merge the deriving briefs, and only while a seat remains to merge
-      into: a cycle at opus-cap 3 holds none, so there the derivation
-      waits for the next prompt. Dropping derive to reach an exhausted
-      allowance relabels the work rather than sizing it.
+      split. Where none can, the remedy is to merge the deriving briefs,
+      and only while a seat remains to merge into: a cycle at opus-cap 3
+      holds none, so there the derivation waits for the next prompt.
+      Dropping derive to reach an exhausted allowance relabels the work
+      rather than sizing it.
     """
     if slot.refusal == 'mismatch':
         return (
@@ -776,17 +777,17 @@ def refusal_reason(slot: Reservation, round_name: str) -> str:
             f'a cycle at opus-cap {slot.fixed} holds no derive seat, and no later '
             'launch can raise a cap already fixed: a cycle carrying a deriving '
             'brief declares opus-cap 6 or 9 from its first capped launch. In this '
-            f'cycle, use {HIGH_TIERS_TEXT} where an oracle outside the agent '
-            'can check the brief; where none can, the derivation waits for the '
+            'cycle, where an oracle outside the agent can check the brief, use '
+            f'{HIGH_TIERS_TEXT}; where none can, the derivation waits for the '
             'next prompt, since every deriving launch of this cycle is refused '
             'here.')
     if slot.refusal == 'seat':
         return (
             f'a cycle at opus-cap {slot.fixed} holds {slot.cap} derive '
             f'seat{"s" if slot.cap != 1 else ""}; this '
-            f'would be #{slot.number}. Use {HIGH_TIERS_TEXT} for a brief an '
-            'oracle outside the agent can check; otherwise merge the deriving '
-            'briefs or hold one for the next prompt.')
+            f'would be #{slot.number}. For a brief an oracle outside the agent can '
+            f'check, use {HIGH_TIERS_TEXT}; otherwise merge the deriving briefs or '
+            'hold one for the next prompt.')
     if round_name == 'synthesize':
         return (
             f'the synthesize round holds at most {slot.cap} capped agents per '
@@ -848,10 +849,10 @@ def gate_agent(hook_input: dict[str, Any]) -> dict[str, Any] | None:
         }
     if model == 'fable':
         return deny(
-            f'review-gate: launch {FABLE_TIERS_TEXT} without a '
-            'model option. An invocation-level model overrides the '
-            "definition's version pin; the fable family alias is configurable "
-            'and can change over time.',
+            'review-gate: drop the fable model option; Fable is reached by '
+            f'launching {FABLE_TIERS_TEXT} with no model option. An '
+            "invocation-level model overrides the definitions' version pins, and "
+            'the fable family alias is configurable and can change over time.',
             event)
     if not scoped and tier_name in INHERITING_TYPES:
         return deny(

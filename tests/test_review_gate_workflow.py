@@ -11,8 +11,8 @@ import pathlib
 import sys
 
 import pytest
-from test_review_gate import agent_input, decision, header, last_log, reason
-from test_review_gate import state_file
+from test_review_gate import HIGH_REMEDY, agent_input, decision, header
+from test_review_gate import last_log, reason, state_file
 
 META = "export const meta = { name: 'probe', description: 'gate probe' }\n"
 ONE_LINE_HEADER = (
@@ -474,13 +474,33 @@ def test_opus_review_stage_without_opus_cap_is_denied(gate):
 def test_xhigh_stage_without_a_kind_is_denied_before_a_slot(gate):
     """Verify an opus-xhigh stage with no derive is denied before a slot.
 
-    Mutation: checking the derive rule after the reservation.
-    Oracle: deny names opus-high as the remedy and no state is written.
+    Mutation: checking the derive rule after the reservation; or naming
+        opus-high alone, or fable-high without its split condition, in
+        the Workflow-path remedy while the Agent path carries both.
+    Oracle: the deny names both high tiers with the split condition and
+        no state is written.
     """
     out = run(gate, 'await ' + stage(marked(), 'agent-scope:opus-xhigh'))
     assert decision(out) == 'deny'
     assert 'needs derive: <kind>' in reason(out)
-    assert 'use agent-scope:opus-high' in reason(out)
+    assert HIGH_REMEDY in reason(out)
+    assert cycle_state(gate) is None
+
+
+def test_unknown_kind_on_a_stage_offers_both_high_tiers(gate):
+    """Verify the Workflow-path unknown-kind deny carries the two-tier remedy.
+
+    Mutation: a Workflow-path literal naming opus-high alone, or
+        fable-high without its split condition, where the Agent path
+        reads HIGH_TIERS_TEXT.
+    Oracle: an opus-xhigh stage declaring derive: breadth is denied
+        naming the six kinds and HIGH_REMEDY; no state is written.
+    """
+    out = run(gate, 'await ' + stage(
+        marked(opus_cap='6', derive='breadth'), 'agent-scope:opus-xhigh'))
+    assert decision(out) == 'deny'
+    assert 'invalid derive: breadth' in reason(out)
+    assert HIGH_REMEDY in reason(out)
     assert cycle_state(gate) is None
 
 
