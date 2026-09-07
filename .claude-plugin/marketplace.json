@@ -1,6 +1,6 @@
 {
   "name": "agent-scope",
-  "description": "Seven subagent tiers that pin model and effort, uncapped Sonnet and Haiku delegation, a PreToolUse gate that budgets Opus and Fable launches per round and shares derive seats between them, and the directives that pick a tier",
+  "description": "Eight subagent tiers that pin model and effort, uncapped Sonnet and Haiku delegation, a PreToolUse gate that budgets Opus and Fable launches per round and shares derive seats between them, and the directives that pick a tier",
   "owner": {
     "name": "bissli"
   },
@@ -8,7 +8,7 @@
     {
       "name": "agent-scope",
       "source": "./",
-      "description": "Seven subagent tiers that pin model and effort, uncapped Sonnet and Haiku delegation, a PreToolUse gate that budgets Opus and Fable launches per round and shares derive seats between them, and the directives that pick a tier"
+      "description": "Eight subagent tiers that pin model and effort, uncapped Sonnet and Haiku delegation, a PreToolUse gate that budgets Opus and Fable launches per round and shares derive seats between them, and the directives that pick a tier"
     }
   ]
 }

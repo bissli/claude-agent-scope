@@ -128,7 +128,7 @@ def test_unpinned_stage_is_denied(gate, tier):
     assert decision(out) == 'deny'
     assert (
         'agent-scope:opus-medium, agent-scope:opus-high, agent-scope:opus-xhigh, '
-        'agent-scope:fable-xhigh, agent-scope:sonnet-medium, '
+        'agent-scope:fable-high, agent-scope:fable-xhigh, agent-scope:sonnet-medium, '
         'agent-scope:sonnet-high, agent-scope:haiku'
         in reason(out))
     assert 'inherit the main-loop model' in reason(out)
@@ -212,7 +212,7 @@ def test_prefixed_typo_tier_in_workflow_is_denied(gate):
     Mutation: dropping the prefixed-non-tier check in the Workflow path
         so agent-scope:sonnet-hgih passes as a valid tier.
     Oracle: agentType 'agent-scope:sonnet-hgih' is denied naming the
-        seven valid tiers; no state is written.
+        eight valid tiers; no state is written.
     """
     out = run(gate, 'await ' + stage("'hi'", 'agent-scope:sonnet-hgih'))
     assert decision(out) == 'deny'
@@ -484,14 +484,18 @@ def test_xhigh_stage_without_a_kind_is_denied_before_a_slot(gate):
     assert cycle_state(gate) is None
 
 
-@pytest.mark.parametrize('tier', ['agent-scope:opus-high', 'agent-scope:sonnet-high'])
+@pytest.mark.parametrize(
+    'tier',
+    ['agent-scope:opus-high', 'agent-scope:fable-high', 'agent-scope:sonnet-high'])
 def test_derive_on_a_stage_below_xhigh_is_denied(gate, tier):
     """Verify a stage on any other tier may not carry derive.
 
     Mutation: checking the tier rule only on Opus stages, so a cheap
-        stage carries the field unread.
-    Oracle: an opus-high and a sonnet-high stage declaring derive: proof
-        are denied naming the stage's tier; no state is written.
+        stage carries the field unread; or testing it against the Fable
+        family, so a fable-high stage seats a derivation at high effort.
+    Oracle: an opus-high, a fable-high, and a sonnet-high stage declaring
+        derive: proof are denied naming the stage's tier; no state is
+        written.
     """
     out = run(gate, 'await ' + stage(marked(derive='proof'), tier))
     assert decision(out) == 'deny'
@@ -1101,6 +1105,7 @@ CAPPED_STAGE_TIERS = (
     'agent-scope:opus-medium',
     'agent-scope:opus-high',
     'agent-scope:opus-xhigh',
+    'agent-scope:fable-high',
     'agent-scope:fable-xhigh',
     )
 DERIVING_STAGE_ORDERS = [
@@ -1111,11 +1116,11 @@ DERIVING_STAGE_ORDERS = [
 
 @pytest.mark.parametrize('tier', CAPPED_STAGE_TIERS)
 def test_every_capped_tier_is_held_to_the_stage_rules(gate, tier):
-    """Verify the countable-position and literal-header rules cover all four.
+    """Verify the countable-position and literal-header rules cover all five.
 
     Mutation: testing either rule against the Opus tiers alone, so a
-        fable-xhigh stage inside a mapped callback, or one whose prompt
-        is built at runtime, runs unread and uncounted.
+        Fable stage inside a mapped callback, or one whose prompt is
+        built at runtime, runs unread and uncounted.
     Oracle: a stage inside a pipeline callback is denied for running
         more than once, a stage with a variable prompt is denied for
         hiding the header, and neither writes state.
@@ -1192,3 +1197,43 @@ def test_cheap_stages_are_outside_the_capped_quantity_rules(gate):
         ]
     assert run(gate, sweep + thunks(*calls)) is None
     assert cycle_state(gate) is None
+
+
+def test_a_fable_high_stage_is_capped_without_a_seat(gate):
+    """Verify a fable-high stage is counted as capped and never seated.
+
+    Mutation: leaving fable-high out of CAPPED_TIERS, so the stage runs
+        unmarked and uncounted as a cheap one does; or adding it to
+        SEAT_TIERS, so the stage is denied for want of a kind.
+    Oracle: an unmarked fable-high stage is denied naming the header; a
+        marked one at opus-cap 3 allows with no systemMessage and leaves
+        review 1 and no seat key in the cycle.
+    """
+    out = run(gate, 'await ' + stage("'Judge this.'", 'agent-scope:fable-high'))
+    assert decision(out) == 'deny'
+    assert 'round: swarm' in reason(out)
+    assert cycle_state(gate) is None
+    assert run(gate, 'await ' + stage(marked(), 'agent-scope:fable-high')) is None
+    assert cycle_state(gate)['review'] == 1
+    assert 'xhigh' not in cycle_state(gate)
+
+
+def test_a_fable_high_stage_fills_the_round_beside_agent_launches(gate):
+    """Verify a fable-high stage draws on the Agent launches' round counter.
+
+    Mutation: a counter per tool or per model family, so a cycle at
+        opus-cap 3 holds three Opus Agent launches and three Fable
+        stages.
+    Oracle: two opus-high Agent launches at 3, then a script with one
+        fable-high stage allows as #3; a second such script is refused
+        as #4 and the counter stays 3.
+    """
+    for _ in range(2):
+        assert gate.gate_agent(agent_input(header())) is None
+    script = 'await ' + stage(marked(), 'agent-scope:fable-high')
+    assert run(gate, script) is None
+    assert last_log(gate)['round_n'] == 3
+    out = run(gate, script)
+    assert decision(out) == 'deny'
+    assert '#4' in reason(out)
+    assert cycle_state(gate)['review'] == 3

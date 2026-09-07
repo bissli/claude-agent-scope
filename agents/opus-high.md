@@ -6,9 +6,10 @@ description: >-
   verification, multi-file debugging, and synthesis. Three per round is
   the default cap; the review gate counts the launch against it. A brief
   whose principal claim an oracle outside the agent settles belongs here,
-  however large or sensitive its subject. Every launch opens its prompt
-  with a review-gate header and declares opus-cap in the review, verify,
-  and swarm rounds; work outside a review declares round: swarm.
+  however large or sensitive its subject, unless it fails to split, which
+  is fable-high. Every launch opens its prompt with a review-gate header
+  and declares opus-cap in the review, verify, and swarm rounds; work
+  outside a review declares round: swarm.
 model: claude-opus-5
 effort: high
 ---

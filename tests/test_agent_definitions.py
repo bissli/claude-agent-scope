@@ -17,13 +17,16 @@ AGENTS_DIR = pathlib.Path(__file__).resolve().parents[1] / 'agents'
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 FRONTMATTER_RE = re.compile(r'\A---\n(?P<body>.*?)\n---\n', re.DOTALL)
 FIELDS = ('name', 'description', 'model', 'effort')
-CAPPED_TIERS = ('opus-medium', 'opus-high', 'opus-xhigh', 'fable-xhigh')
+CAPPED_TIERS = ('opus-medium', 'opus-high', 'opus-xhigh', 'fable-high', 'fable-xhigh')
 DERIVING_TIERS = ('opus-xhigh', 'fable-xhigh')
 EXPECTED = {
     'opus-medium': ('claude-opus-5', 'medium', 'Counts as a capped launch'),
     'opus-high': ('claude-opus-5', 'high', 'Three per round is the default cap'),
     'opus-xhigh': (
         'claude-opus-5', 'xhigh', 'derive seat shared with fable-xhigh'),
+    'fable-high': (
+        'claude-fable-5-1', 'high',
+        'Counts as a capped launch and takes no derive seat'),
     'fable-xhigh': (
         'claude-fable-5-1', 'xhigh', 'derive seat shared with opus-xhigh'),
     'sonnet-medium': ('sonnet', 'medium', 'uncapped under the review gate'),
@@ -456,3 +459,20 @@ def test_a_deriving_body_asks_for_the_written_derivation(stem):
     assert 'counterexample' in body
     assert 'cheaper checks' in body
     assert 'unsettled' in body
+
+
+def test_the_fable_high_body_asks_for_the_check_not_a_derivation():
+    """Verify fable-high's body is a reviewer's, not a copy of fable-xhigh's.
+
+    Mutation: copying agents/fable-xhigh.md to fable-high.md and editing
+        the frontmatter alone, which asks a high-effort agent with an
+        oracle in hand to report a derivation instead of the check.
+    Oracle: the body names the oracle and the check, asks for neither
+        the derivation itself nor the refused pair, and pins the tier's
+        model and effort in the frontmatter.
+    """
+    body = definition('fable-high').split('---\n', 2)[2]
+    assert 'oracle' in body
+    assert 'check' in body
+    assert 'the derivation itself' not in body
+    assert REFUSED_BODY_TEXT not in body

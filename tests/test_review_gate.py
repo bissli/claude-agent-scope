@@ -94,11 +94,18 @@ def xhigh(round_name='review', opus_cap='6', derive='proof', **kwargs):
     return agent_input(prompt, subagent_type='agent-scope:opus-xhigh', **kwargs)
 
 
-def fable(round_name='review', opus_cap='6', derive='joint-behavior', **kwargs):
+def fable_xhigh(round_name='review', opus_cap='6', derive='joint-behavior', **kwargs):
     """Build a fable-xhigh launch with a kind, at the smallest cap with a seat.
     """
     prompt = header(round_name, opus_cap, derive)
     return agent_input(prompt, subagent_type='agent-scope:fable-xhigh', **kwargs)
+
+
+def fable_high(round_name='review', opus_cap='3', derive=None, **kwargs):
+    """Build a fable-high launch: capped, no kind, at the default cap.
+    """
+    prompt = header(round_name, opus_cap, derive)
+    return agent_input(prompt, subagent_type='agent-scope:fable-high', **kwargs)
 
 
 def decision(output):
@@ -184,16 +191,17 @@ def exhaust_default_cap(gate, prompt=None):
 
 @pytest.mark.parametrize(
     ('subagent_type', 'model'),
-    [('agent-scope:opus-high', None), ('agent-scope:opus-xhigh', None), ('Plan', None),
-     ('claude-code-guide', None), ('Explore', 'opus')])
+    [('agent-scope:opus-high', None), ('agent-scope:opus-xhigh', None),
+     ('agent-scope:fable-high', None), ('Plan', None), ('claude-code-guide', None),
+     ('Explore', 'opus')])
 def test_unmarked_opus_launch_is_denied(gate, subagent_type, model):
-    """Verify an Opus-tier Agent whose prompt carries no header is denied.
+    """Verify a capped Agent whose prompt carries no header is denied.
 
     Mutation: allowing an unmarked launch on every type, or testing the
-        three tier names instead of is_uncapped so that Plan, a plugin
-        type, or an Explore naming opus slips through unmarked.
-    Oracle: five Opus-tier shapes are denied naming round: swarm; no
-        slot is logged and no state is written.
+        Opus tier names instead of is_uncapped so that fable-high, Plan,
+        a plugin type, or an Explore naming opus slips through unmarked.
+    Oracle: six capped shapes are denied naming round: swarm; no slot is
+        logged and no state is written.
     """
     payload = agent_input(
         'Implement the change.', model=model, subagent_type=subagent_type)
@@ -354,7 +362,8 @@ def test_inheriting_launches_are_denied_whatever_the_model(gate, subagent_type, 
 
 @pytest.mark.parametrize(
     'subagent_type',
-    ['agent-scope:opus-medium', 'agent-scope:opus-xhigh', 'claude-code-guide'])
+    ['agent-scope:opus-medium', 'agent-scope:opus-xhigh', 'agent-scope:fable-high',
+     'claude-code-guide'])
 def test_named_types_pass_the_tier_rule(gate, subagent_type):
     """Verify any named type other than general-purpose passes the tier rule.
 
@@ -410,7 +419,7 @@ def test_prefixed_inheriting_names_are_denied_as_non_tiers(gate, subagent_type):
     Mutation: testing INHERITING_TYPES on the stripped name, so
         agent-scope:general-purpose is refused for inheriting the session
         effort, a reason that is false of a name no agent carries.
-    Oracle: the denial names the launch as not a tier, lists the seven,
+    Oracle: the denial names the launch as not a tier, lists the eight,
         and never says inherit.
     """
     output = gate.gate_agent(agent_input(header(), subagent_type=subagent_type))
@@ -741,16 +750,16 @@ def test_xhigh_synthesize_cannot_escape_a_cycle_at_3(gate):
 
 @pytest.mark.parametrize('model', ['sonnet', 'haiku'])
 @pytest.mark.parametrize('tier', [
-    'agent-scope:opus-medium', 'agent-scope:opus-high',
-    'agent-scope:opus-xhigh', 'agent-scope:fable-xhigh'])
+    'agent-scope:opus-medium', 'agent-scope:opus-high', 'agent-scope:opus-xhigh',
+    'agent-scope:fable-high', 'agent-scope:fable-xhigh'])
 def test_a_cheap_model_keeps_any_capped_tier_uncapped(gate, tier, model):
     """Verify the uncapped check runs before the derive presence rule.
 
     Mutation: moving the presence rule above the uncapped check, which
         would deny a launch that runs on sonnet or haiku for naming no
         kind; or exempting only the Opus tiers, so an explicit cheap
-        model beside fable-xhigh is charged a slot.
-    Oracle: four capped tiers at opus-cap 3, each with an explicit cheap
+        model beside a Fable tier is charged a slot.
+    Oracle: five capped tiers at opus-cap 3, each with an explicit cheap
         model and no derive, allow twelve times over, log scope uncapped,
         and write no state.
     """
@@ -1585,7 +1594,7 @@ def test_fable_xhigh_draws_on_the_same_seat_as_opus_xhigh(gate):
         cap, which still has four slots free.
     """
     assert 'opus-xhigh seat 1/1' in seat_message(gate.gate_agent(xhigh('review', '6')))
-    output = gate.gate_agent(fable('review', '6'))
+    output = gate.gate_agent(fable_xhigh('review', '6'))
     assert decision(output) == 'deny'
     assert 'holds 1 derive seat' in reason(output)
 
@@ -1600,8 +1609,9 @@ def test_one_brief_per_deriving_tier_fits_at_opus_cap_9(gate):
         third deriving launch is denied naming #3.
     """
     assert 'opus-xhigh seat 1/2' in seat_message(gate.gate_agent(xhigh('review', '9')))
-    assert 'fable-xhigh seat 2/2' in seat_message(gate.gate_agent(fable('verify', '9')))
-    output = gate.gate_agent(fable('verify', '9'))
+    assert 'fable-xhigh seat 2/2' in seat_message(
+        gate.gate_agent(fable_xhigh('verify', '9')))
+    output = gate.gate_agent(fable_xhigh('verify', '9'))
     assert decision(output) == 'deny'
     assert '#3' in reason(output)
 
@@ -1632,21 +1642,127 @@ def test_a_fable_model_option_is_denied_even_beside_its_tier(gate):
         An invocation-level model overrides the definition's version pin,
         and the fable family alias is configurable, so the launch could
         land on a version the tier never named.
-    Oracle: model fable is denied on an ordinary tier and on
-        agent-scope:fable-xhigh alike, both denials naming the tier; the
-        same tier with no model option seats 1/1.
+    Oracle: model fable is denied on an ordinary tier and on each Fable
+        tier alike, every denial naming both Fable tiers; fable-xhigh
+        with no model option then seats 1/1.
     """
     for launch in (
             agent_input('ordinary task', model='fable'),
-            fable('review', '6', model='fable')):
+            fable_xhigh('review', '6', model='fable'),
+            fable_high('review', '6', model='fable')):
         output = gate.gate_agent(launch)
         assert decision(output) == 'deny'
-        assert 'agent-scope:fable-xhigh' in reason(output)
+        assert 'agent-scope:fable-high or agent-scope:fable-xhigh' in reason(output)
         assert 'version pin' in reason(output)
         assert 'default' not in reason(output)
     assert not state_file(gate).exists()
-    output = gate.gate_agent(fable('review', '6'))
+    output = gate.gate_agent(fable_xhigh('review', '6'))
     assert 'fable-xhigh seat 1/1' in seat_message(output)
+
+
+def test_fable_high_is_capped_and_takes_no_seat(gate):
+    """Verify fable-high spends a round slot and never a derive seat.
+
+    Mutation: adding fable-high to SEAT_TIERS, which denies it for want
+        of a kind; or listing it among the cheap tiers, which writes no
+        state.
+    Oracle: at opus-cap 3, where the cycle holds no seat, a fable-high
+        review launch allows with no seat line, and the stored cycle
+        shows review 1 and no seat key.
+    """
+    assert gate.gate_agent(fable_high()) is None
+    assert stored_cycle(gate)['review'] == 1
+    assert 'xhigh' not in stored_cycle(gate)
+
+
+def test_derive_on_fable_high_is_denied_and_takes_no_slot(gate):
+    """Verify fable-high may not declare a kind, as opus-high may not.
+
+    Mutation: testing derive against the Fable family rather than the
+        deriving tiers, so fable-high with a kind seats a derivation at
+        high effort.
+    Oracle: the deny names the launched tier and both deriving tiers and
+        writes no state; three fable-high launches then fill opus-cap 3
+        and a fourth is denied.
+    """
+    output = gate.gate_agent(fable_high(derive='joint-behavior'))
+    assert decision(output) == 'deny'
+    assert 'agent-scope:fable-high declared derive: joint-behavior' in reason(output)
+    assert 'agent-scope:opus-xhigh and agent-scope:fable-xhigh' in reason(output)
+    assert not state_file(gate).exists()
+    assert all(gate.gate_agent(fable_high()) is None for _ in range(3))
+    assert decision(gate.gate_agent(fable_high())) == 'deny'
+
+
+def test_fable_high_and_opus_share_one_round_counter(gate):
+    """Verify the capped tiers of both families fill one round cap.
+
+    Mutation: a round counter per model family, so a round at opus-cap 3
+        holds three Opus and three Fable launches.
+    Oracle: two opus-high launches and one fable-high launch fill review
+        at 3; a fourth launch on either family is denied as #4.
+    """
+    assert all(gate.gate_agent(agent_input(header())) is None for _ in range(2))
+    assert gate.gate_agent(fable_high()) is None
+    for launch in (agent_input(header()), fable_high()):
+        output = gate.gate_agent(launch)
+        assert decision(output) == 'deny'
+        assert 'at most 3 capped agents in the review round; this would be #4' in (
+            reason(output))
+    assert stored_cycle(gate)['review'] == 3
+
+
+def test_fable_high_leaves_the_seat_to_the_deriving_tiers(gate):
+    """Verify a fable-high launch neither takes nor needs a derive seat.
+
+    Mutation: charging every Fable launch to the seat counter, so a
+        fable-high review at opus-cap 6 spends the cycle's one seat and
+        the deriving brief behind it is refused.
+    Oracle: after a fable-high launch at 6, opus-xhigh takes seat 1/1;
+        with the seat spent a second fable-high launch still allows, and
+        the stored seat count stays 1.
+    """
+    assert gate.gate_agent(fable_high('review', '6')) is None
+    assert 'opus-xhigh seat 1/1' in seat_message(gate.gate_agent(xhigh('review', '6')))
+    assert gate.gate_agent(fable_high('verify', '6')) is None
+    assert stored_cycle(gate)['xhigh'] == 1
+    assert stored_cycle(gate)['verify'] == 1
+
+
+def test_synthesize_holds_two_capped_agents_across_families(gate):
+    """Verify the synthesize cap counts Opus and Fable together.
+
+    Mutation: a synthesize counter per model family, so a cycle holds
+        two Opus and two Fable synthesizers.
+    Oracle: an opus-high and a fable-high synthesize launch allow; a
+        third on either family is denied naming #3.
+    """
+    assert gate.gate_agent(agent_input(header('synthesize', None))) is None
+    assert gate.gate_agent(fable_high('synthesize', None)) is None
+    third = (agent_input(header('synthesize', None)), fable_high('synthesize', None))
+    for launch in third:
+        output = gate.gate_agent(launch)
+        assert decision(output) == 'deny'
+        assert 'at most 2 capped agents per cycle; this would be #3' in reason(output)
+
+
+def test_every_high_remedy_names_both_high_tiers(gate):
+    """Verify each refusal that offers a high tier offers fable-high too.
+
+    Mutation: naming opus-high alone in the remedy, which sends a brief
+        that fails to split to a tier that splits it.
+    Oracle: the kind-missing, unknown-kind, unfixed-synthesize, no-seat,
+        and spent-seat refusals each name opus-high or fable-high.
+    """
+    both = 'agent-scope:opus-high or agent-scope:fable-high'
+    assert both in reason(gate.gate_agent(fable_xhigh(derive=None)))
+    assert both in reason(gate.gate_agent(xhigh(derive='breadth')))
+    assert both in reason(gate.gate_agent(xhigh('synthesize', None)))
+    assert gate.gate_agent(agent_input(header(), prompt_id='turn-2')) is None
+    assert both in reason(gate.gate_agent(xhigh('review', '3', prompt_id='turn-2')))
+    assert 'seat 1/1' in seat_message(gate.gate_agent(xhigh(prompt_id='turn-3')))
+    spent = xhigh('verify', '6', 'bound', prompt_id='turn-3')
+    assert both in reason(gate.gate_agent(spent))
 
 
 # --- Cumulative budgets and shared derive seats ---

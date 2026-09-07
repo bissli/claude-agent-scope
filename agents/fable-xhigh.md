@@ -6,7 +6,7 @@ description: >-
   changes the question. Where the brief splits without changing the
   question, use opus-xhigh; where an oracle outside the agent settles the
   principal claim - a spec, a schema, a test run, the callers - use
-  opus-high. Importance, file count, subject matter, and the ultracode
+  fable-high. Importance, file count, subject matter, and the ultracode
   setting are not reasons to reach this rung. Consumes a capped launch and
   a derive seat shared with opus-xhigh: the cycle's opus-cap seats none at
   3, one at 6, two at 9, so one deriving brief declares 6 and two declare

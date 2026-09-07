@@ -8,16 +8,17 @@ description: >-
   designed subsystems. Partial tests, numerical probes, and counterexamples
   stay useful as checks; their availability alone does not settle the
   principal claim. Where an oracle outside the agent does settle it - a
-  spec, a schema, a test run, the callers - the brief is opus-high, however
-  large, important, or security-sensitive its subject and whatever the
-  ultracode setting. Consumes a capped launch and a derive seat shared with
-  fable-xhigh: the cycle's opus-cap seats none at 3, one at 6, two at 9, so
-  one deriving brief declares 6 and two declare 9 from the cycle's first
-  capped review, verify, or swarm launch, and no later launch can change a
-  fixed cap. Supply a review-gate header and derive: <kind> in every round,
-  synthesize included, naming one of formula, bound, proof, equivalence,
-  interleaving, or joint-behavior; use round: swarm outside review work.
-  Omit the model option when launching this tier.
+  spec, a schema, a test run, the callers - the brief is opus-high, or
+  fable-high where it fails to split, however large, important, or
+  security-sensitive its subject and whatever the ultracode setting.
+  Consumes a capped launch and a derive seat shared with fable-xhigh: the
+  cycle's opus-cap seats none at 3, one at 6, two at 9, so one deriving
+  brief declares 6 and two declare 9 from the cycle's first capped review,
+  verify, or swarm launch, and no later launch can change a fixed cap.
+  Supply a review-gate header and derive: <kind> in every round, synthesize
+  included, naming one of formula, bound, proof, equivalence, interleaving,
+  or joint-behavior; use round: swarm outside review work. Omit the model
+  option when launching this tier.
 model: claude-opus-5
 effort: xhigh
 ---

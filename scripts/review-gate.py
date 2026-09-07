@@ -14,7 +14,7 @@ Notes
 -----
 - Every launch names its tier under the plugin prefix: subagent_type
   agent-scope:opus-medium, agent-scope:opus-high, agent-scope:opus-xhigh,
-  agent-scope:fable-xhigh, agent-scope:sonnet-medium,
+  agent-scope:fable-high, agent-scope:fable-xhigh, agent-scope:sonnet-medium,
   agent-scope:sonnet-high, or agent-scope:haiku, each an agent
   definition that pins its model and effort. A launch on
   general-purpose or with no type would inherit the session effort and
@@ -38,7 +38,8 @@ Notes
   unknown kind, or the field on any other tier, is denied before a slot
   is taken. The cycle's opus-cap sets its derive seats, none at 3, one
   at 6, two at 9, on one counter the two tiers share across the rounds;
-  a launch past the seats is denied naming opus-high and takes no slot.
+  a launch past the seats is denied naming the high tiers and takes no
+  slot.
   Two deriving briefs declare opus-cap 9, which seats both, so the
   tiers do not compete. A deriving synthesize
   agent is denied until a review, verify, or swarm agent has fixed the
@@ -56,8 +57,8 @@ Notes
   review declares round swarm, a fourth round counted and capped like
   review on its own counter. A cheap launch may omit the header, and a
   fable model option is always denied: an invocation-level model
-  outranks the version pin in agent-scope:fable-xhigh's frontmatter,
-  and the fable family alias is configurable and can change over time.
+  outranks the version pin in the Fable definitions' frontmatter, and
+  the fable family alias is configurable and can change over time.
 - Silence lets the call continue; a JSON deny blocks it. An allowed
   deriving launch prints a JSON systemMessage naming the seat, the
   kind, and the label; the user sees it and the call continues.
@@ -121,12 +122,15 @@ HEADER_FIELDS = {'round', 'opus-cap', 'derive'}
 PLUGIN_NAME = 'agent-scope'
 TIER_PREFIX = f'{PLUGIN_NAME}:'
 OPUS_TIERS = ('opus-medium', 'opus-high', 'opus-xhigh')
-FABLE_TIERS = ('fable-xhigh',)
+FABLE_TIERS = ('fable-high', 'fable-xhigh')
 CAPPED_TIERS = OPUS_TIERS + FABLE_TIERS
 SEAT_TIERS = ('opus-xhigh', 'fable-xhigh')
+HIGH_TIERS = ('opus-high', 'fable-high')
 CHEAP_TIERS = ('sonnet-medium', 'sonnet-high', 'haiku')
 TIERS = CAPPED_TIERS + CHEAP_TIERS
 SEAT_TIERS_TEXT = ' and '.join(TIER_PREFIX + tier for tier in SEAT_TIERS)
+HIGH_TIERS_TEXT = ' or '.join(TIER_PREFIX + tier for tier in HIGH_TIERS)
+FABLE_TIERS_TEXT = ' or '.join(TIER_PREFIX + tier for tier in FABLE_TIERS)
 TIERS_TEXT = ', '.join(TIER_PREFIX + tier for tier in TIERS)
 INHERITING_TYPES = {'', 'general-purpose'}
 FORK_TYPE = 'fork'
@@ -747,8 +751,9 @@ def refusal_reason(slot: Reservation, round_name: str) -> str:
       caller back to declare a larger one for this cycle. Where the
       value is not yet fixed, the remedy names the value that seats a
       derivation, since the documented default of 3 seats none.
-    - opus-high is offered for a deriving brief only where an oracle
-      outside the agent can check it. Where none can, the remedy is to
+    - A high tier is offered for a deriving brief only where an oracle
+      outside the agent can check it, fable-high where the brief fails to
+      split. Where none can, the remedy is to
       merge the deriving briefs, and only while a seat remains to merge
       into: a cycle at opus-cap 3 holds none, so there the derivation
       waits for the next prompt. Dropping derive to reach an exhausted
@@ -765,14 +770,13 @@ def refusal_reason(slot: Reservation, round_name: str) -> str:
             'review, verify, or swarm agent has fixed, since the seat count reads '
             'off it. Launch that round first declaring opus-cap 6 or 9, since 3 '
             'seats no derivation and a fixed cap does not rise; or, where an '
-            f'oracle outside the agent can check this brief, use {TIER_PREFIX}'
-            'opus-high.')
+            f'oracle outside the agent can check this brief, use {HIGH_TIERS_TEXT}.')
     if slot.refusal == 'seat' and slot.cap == 0:
         return (
             f'a cycle at opus-cap {slot.fixed} holds no derive seat, and no later '
             'launch can raise a cap already fixed: a cycle carrying a deriving '
             'brief declares opus-cap 6 or 9 from its first capped launch. In this '
-            f'cycle, use {TIER_PREFIX}opus-high where an oracle outside the agent '
+            f'cycle, use {HIGH_TIERS_TEXT} where an oracle outside the agent '
             'can check the brief; where none can, the derivation waits for the '
             'next prompt, since every deriving launch of this cycle is refused '
             'here.')
@@ -780,7 +784,7 @@ def refusal_reason(slot: Reservation, round_name: str) -> str:
         return (
             f'a cycle at opus-cap {slot.fixed} holds {slot.cap} derive '
             f'seat{"s" if slot.cap != 1 else ""}; this '
-            f'would be #{slot.number}. Use {TIER_PREFIX}opus-high for a brief an '
+            f'would be #{slot.number}. Use {HIGH_TIERS_TEXT} for a brief an '
             'oracle outside the agent can check; otherwise merge the deriving '
             'briefs or hold one for the next prompt.')
     if round_name == 'synthesize':
@@ -844,7 +848,7 @@ def gate_agent(hook_input: dict[str, Any]) -> dict[str, Any] | None:
         }
     if model == 'fable':
         return deny(
-            f'review-gate: launch {TIER_PREFIX}{FABLE_TIERS[0]} without a '
+            f'review-gate: launch {FABLE_TIERS_TEXT} without a '
             'model option. An invocation-level model overrides the '
             "definition's version pin; the fable family alias is configurable "
             'and can change over time.',
@@ -896,7 +900,7 @@ def gate_agent(hook_input: dict[str, Any]) -> dict[str, Any] | None:
             f'review-gate: invalid derive: {derive}. The kinds are {KINDS_TEXT}; a '
             'kind names what the agent must derive, and importance, breadth, and '
             'subject matter are not kinds. Where none fits the brief, use '
-            f'{TIER_PREFIX}opus-high.',
+            f'{HIGH_TIERS_TEXT}.',
             {**event, 'derive': derive})
     if derive is not None and tier_name not in SEAT_TIERS:
         return deny(
@@ -912,7 +916,7 @@ def gate_agent(hook_input: dict[str, Any]) -> dict[str, Any] | None:
         return deny(
             f'review-gate: {agent_type} needs derive: <kind> in the header, one of '
             f'{KINDS_TEXT}. Where an oracle outside the agent checks the result - a '
-            f'spec, a schema, a test run, the callers - use {TIER_PREFIX}opus-high.',
+            f'spec, a schema, a test run, the callers - use {HIGH_TIERS_TEXT}.',
             {**event, 'opus_cap': opus_cap})
     if round_name in OPUS_CAP_ROUNDS and opus_cap is None:
         return deny(
@@ -1675,7 +1679,7 @@ def gate_workflow(hook_input: dict[str, Any]) -> dict[str, Any] | None:
       stage, round, opus-cap, and derive values, derive on a deriving
       tier alone, opus-cap presence on a capped review, verify, or swarm
       stage. Four rules are Workflow's own: agentType names one of the
-      seven prefixed tiers and nothing else, so Explore, Plan, and fork
+      eight prefixed tiers and nothing else, so Explore, Plan, and fork
       deny here and pass on Agent; it compares as written, prefix and
       case included, where gate_agent lowercases; a capped stage must run
       at most once; and it must open its prompt with a literal whose text
@@ -1826,7 +1830,7 @@ def gate_workflow(hook_input: dict[str, Any]) -> dict[str, Any] | None:
                 f'review-gate: {where}: invalid derive: {derive}. The kinds are '
                 f'{KINDS_TEXT}; a kind names what the agent must derive, and '
                 'importance, breadth, and subject matter are not kinds. Where none '
-                f'fits the brief, use {TIER_PREFIX}opus-high.',
+                f'fits the brief, use {HIGH_TIERS_TEXT}.',
                 {**site, 'derive': derive})
         if derive is not None and tier not in SEAT_TIERS:
             return deny(
@@ -1843,7 +1847,7 @@ def gate_workflow(hook_input: dict[str, Any]) -> dict[str, Any] | None:
                 f'review-gate: {where}: {stage.tier} needs derive: <kind> in the '
                 f'header, one of {KINDS_TEXT}. Where an oracle outside the agent '
                 'checks the result - a spec, a schema, a test run, the callers - '
-                f'use {TIER_PREFIX}opus-high.',
+                f'use {HIGH_TIERS_TEXT}.',
                 {**site, 'opus_cap': opus_cap})
         if round_name in OPUS_CAP_ROUNDS and opus_cap is None:
             return deny(

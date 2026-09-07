@@ -3,8 +3,8 @@ name: sonnet-high
 description: >-
   Sonnet at high effort. Use for standard coding, edits, tests, moderate
   debugging, and review coverage past the capped budget that needs no Opus
-  reasoning, returning claims for an Opus agent to judge, never verdicts.
-  The tier is uncapped under the review gate, in any quantity.
+  reasoning, returning claims for an Opus or Fable agent to judge, never
+  verdicts. The tier is uncapped under the review gate, in any quantity.
 model: sonnet
 effort: high
 ---
