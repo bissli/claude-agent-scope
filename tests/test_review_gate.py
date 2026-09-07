@@ -1010,7 +1010,7 @@ def test_a_deriving_synthesize_needs_a_fixed_opus_cap(gate, tier):
         header('synthesize', None, 'proof'), subagent_type=tier)
     output = gate.gate_agent(synthesize)
     assert decision(output) == 'deny'
-    assert 'review, verify, or swarm agent has fixed' in reason(output)
+    assert 'launch a review, verify, or swarm agent first' in reason(output)
     assert stored_cycle(gate) == {
         'opus_cap': None, 'review': 0, 'verify': 0, 'swarm': 0, 'synthesize': 0}
     assert gate.gate_agent(agent_input(header(opus_cap='6'))) is None

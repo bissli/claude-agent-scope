@@ -762,25 +762,24 @@ def refusal_reason(slot: Reservation, round_name: str) -> str:
     """
     if slot.refusal == 'mismatch':
         return (
-            f'this cycle was declared opus-cap {slot.fixed}; every capped launch '
-            f'that declares opus-cap must use {slot.fixed}. The sonnet and haiku '
+            f'declare opus-cap {slot.fixed}: this cycle was declared opus-cap '
+            f'{slot.fixed}, and no later launch changes it. The sonnet and haiku '
             'tiers are uncapped.')
     if slot.refusal == 'unfixed':
         return (
-            'a deriving tier in the synthesize round needs a cycle whose opus-cap a '
-            'review, verify, or swarm agent has fixed, since the seat count reads '
-            'off it. Launch that round first declaring opus-cap 6 or 9, since 3 '
-            'seats no derivation and a fixed cap does not rise; or, where an '
-            f'oracle outside the agent can check this brief, use {HIGH_TIERS_TEXT}.')
+            'launch a review, verify, or swarm agent first, declaring opus-cap 6 '
+            'or 9: a deriving tier in the synthesize round takes its seat count '
+            'from a fixed opus-cap, 3 seats no derivation, and a fixed cap does '
+            'not rise. Where an oracle outside the agent can check this brief, '
+            f'use {HIGH_TIERS_TEXT}.')
     if slot.refusal == 'seat' and slot.cap == 0:
         return (
             f'a cycle at opus-cap {slot.fixed} holds no derive seat, and no later '
-            'launch can raise a cap already fixed: a cycle carrying a deriving '
-            'brief declares opus-cap 6 or 9 from its first capped launch. In this '
-            'cycle, where an oracle outside the agent can check the brief, use '
-            f'{HIGH_TIERS_TEXT}; where none can, the derivation waits for the '
-            'next prompt, since every deriving launch of this cycle is refused '
-            'here.')
+            'launch can raise a fixed cap: a cycle carrying a deriving brief '
+            'declares opus-cap 6 or 9 from its first capped launch. In this cycle, '
+            'where an oracle outside the agent can check the brief, use '
+            f'{HIGH_TIERS_TEXT}; where none can, the derivation waits for the next '
+            'prompt, and every later deriving launch is refused here too.')
     if slot.refusal == 'seat':
         return (
             f'a cycle at opus-cap {slot.fixed} holds {slot.cap} derive '
@@ -791,16 +790,15 @@ def refusal_reason(slot: Reservation, round_name: str) -> str:
     if round_name == 'synthesize':
         return (
             f'the synthesize round holds at most {slot.cap} capped agents per '
-            f'cycle; this would be #{slot.number}. One synthesizer is the norm: '
-            f'merge the remaining synthesis into it. {TIER_PREFIX}sonnet-high is '
-            'uncapped for further coverage, and returns claims for that '
-            'synthesizer to judge, never a verdict.')
+            f'cycle; this would be #{slot.number}. Merge the remaining synthesis '
+            f'into the first: one synthesizer is the norm. {TIER_PREFIX}sonnet-high '
+            'is uncapped for further coverage.')
     return (
         f'opus-cap {slot.fixed} allows at most {slot.cap} capped agents in the '
         f'{round_name} round; this would be #{slot.number}. A fixed cap does not '
-        "rise, so merge overlapping briefs here and declare the cycle's whole "
-        'capped and deriving demand from its first launch next time; extra '
-        f'coverage takes {TIER_PREFIX}sonnet-high or {TIER_PREFIX}haiku, which are '
+        'rise, so merge overlapping briefs here. Next time declare the whole '
+        "cycle's capped and deriving demand from its first launch. Extra coverage "
+        f'takes {TIER_PREFIX}sonnet-high or {TIER_PREFIX}haiku, which are '
         'uncapped.')
 
 
@@ -849,10 +847,10 @@ def gate_agent(hook_input: dict[str, Any]) -> dict[str, Any] | None:
         }
     if model == 'fable':
         return deny(
-            'review-gate: drop the fable model option; Fable is reached by '
-            f'launching {FABLE_TIERS_TEXT} with no model option. An '
-            "invocation-level model overrides the definitions' version pins, and "
-            'the fable family alias is configurable and can change over time.',
+            'review-gate: drop the fable model option and launch '
+            f'{FABLE_TIERS_TEXT} instead. An invocation-level model overrides the '
+            "definitions' version pins, and the fable family alias is configurable "
+            'and can change.',
             event)
     if not scoped and tier_name in INHERITING_TYPES:
         return deny(
@@ -865,8 +863,8 @@ def gate_agent(hook_input: dict[str, Any]) -> dict[str, Any] | None:
             event)
     if not scoped and tier_name in TIERS:
         return deny(
-            f"review-gate: the tiers are the {PLUGIN_NAME} plugin's agents; name "
-            f'{TIER_PREFIX}{tier_name}, not {agent_type}.',
+            f'review-gate: name {TIER_PREFIX}{tier_name}, not {agent_type}; the '
+            f"tiers are the {PLUGIN_NAME} plugin's agents.",
             event)
 
     header, header_error = parse_header(str(tool_input.get('prompt') or ''))
@@ -892,16 +890,14 @@ def gate_agent(hook_input: dict[str, Any]) -> dict[str, Any] | None:
     opus_cap = header.get('opus-cap')
     if opus_cap is not None and opus_cap not in CAPS:
         return deny(
-            'review-gate: invalid opus-cap. Use 3, 6, or 9; the cap is one of three '
-            'values, not a free number.',
+            'review-gate: invalid opus-cap. Use 3, 6, or 9, and no other value.',
             {**event, 'opus_cap': opus_cap})
     derive = header.get('derive')
     if derive is not None and derive not in DERIVE_KINDS:
         return deny(
-            f'review-gate: invalid derive: {derive}. The kinds are {KINDS_TEXT}; a '
-            'kind names what the agent must derive, and importance, breadth, and '
-            'subject matter are not kinds. Where none fits the brief, use '
-            f'{HIGH_TIERS_TEXT}.',
+            f'review-gate: invalid derive: {derive}. The kinds are {KINDS_TEXT}. '
+            'A kind names what the agent must derive. Importance, breadth, and '
+            f'subject matter are not kinds. Where none fits, use {HIGH_TIERS_TEXT}.',
             {**event, 'derive': derive})
     if derive is not None and tier_name not in SEAT_TIERS:
         return deny(
@@ -1574,7 +1570,7 @@ def script_stages(
                     if key in entry:
                         raise ScriptError(
                             f'a meta phase at line {tokens[j].line} sets {key}; the '
-                            'tier pins the model and effort')
+                            'tier pins the model and effort, so drop it')
         follower = tokens[index + 1] if index + 1 < len(tokens) else None
         is_call = follower is not None and follower.kind == 'punct' and (
             follower.text == '(')
@@ -1715,9 +1711,9 @@ def gate_workflow(hook_input: dict[str, Any]) -> dict[str, Any] | None:
         # built-in workflows too; the gate cannot know which script will
         # run, so it reads none.
         return deny(
-            'review-gate: the gate cannot tell which script the saved workflow '
-            f'{tool_input["name"]} resolves to; pass the script inline or as a '
-            'readable scriptPath.',
+            'review-gate: pass the script inline or as a readable scriptPath; the '
+            f'gate cannot tell which script the saved workflow {tool_input["name"]} '
+            'resolves to.',
             {**event, 'source': str(tool_input['name'])})
     if not script:
         cwd = pathlib.Path(str(hook_input.get('cwd') or '.'))
@@ -1731,9 +1727,9 @@ def gate_workflow(hook_input: dict[str, Any]) -> dict[str, Any] | None:
             script = ''
         if not script:
             return deny(
-                'review-gate: the gate reads a Workflow from its script and cannot '
-                f'read {named or "an empty call"}; pass the script inline or as a '
-                'readable scriptPath.',
+                'review-gate: pass the script inline or as a readable scriptPath; '
+                'the gate reads a Workflow from its script and cannot read '
+                f'{named or "an empty call"}.',
                 {**event, 'source': named or None})
         event['source'] = str(path)
 
@@ -1766,8 +1762,8 @@ def gate_workflow(hook_input: dict[str, Any]) -> dict[str, Any] | None:
                 site)
         if not scoped and tier in TIERS:
             return deny(
-                f"review-gate: {where}: the tiers are the {PLUGIN_NAME} plugin's "
-                f'agents; name agentType {TIER_PREFIX}{tier}, not {stage.tier}.',
+                f'review-gate: {where}: name agentType {TIER_PREFIX}{tier}, not '
+                f"{stage.tier}; the tiers are the {PLUGIN_NAME} plugin's agents.",
                 site)
         if not scoped or tier not in TIERS:
             return deny(
@@ -1795,8 +1791,7 @@ def gate_workflow(hook_input: dict[str, Any]) -> dict[str, Any] | None:
             return deny(
                 f'review-gate: {where}: a capped stage opens its prompt literal '
                 'with the review-gate header itself; a leading ${...} hides it, '
-                'since only the text before the first substitution is read. Write '
-                'the header text first, then the substitution.',
+                'since only the text before the first substitution is read.',
                 site)
         header, header_error = None, None
         if stage.prefix is not None:
@@ -1822,16 +1817,16 @@ def gate_workflow(hook_input: dict[str, Any]) -> dict[str, Any] | None:
         opus_cap = header.get('opus-cap')
         if opus_cap is not None and opus_cap not in CAPS:
             return deny(
-                f'review-gate: {where}: invalid opus-cap. Use 3, 6, or 9; the cap is '
-                'one of three values, not a free number.',
+                f'review-gate: {where}: invalid opus-cap. Use 3, 6, or 9, and no '
+                'other value.',
                 {**site, 'opus_cap': opus_cap})
         derive = header.get('derive')
         if derive is not None and derive not in DERIVE_KINDS:
             return deny(
                 f'review-gate: {where}: invalid derive: {derive}. The kinds are '
-                f'{KINDS_TEXT}; a kind names what the agent must derive, and '
-                'importance, breadth, and subject matter are not kinds. Where none '
-                f'fits the brief, use {HIGH_TIERS_TEXT}.',
+                f'{KINDS_TEXT}. A kind names what the agent must derive. '
+                'Importance, breadth, and subject matter are not kinds. Where none '
+                f'fits, use {HIGH_TIERS_TEXT}.',
                 {**site, 'derive': derive})
         if derive is not None and tier not in SEAT_TIERS:
             return deny(
