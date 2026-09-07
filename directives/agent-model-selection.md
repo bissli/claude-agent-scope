@@ -5,10 +5,12 @@ whole conversation at that price every turn. Delegate grunt work and
 keep throwaway output (file dumps, logs) out of the main context.
 
 **A `fable` model reaches a delegated agent only as
-`agent-scope:fable-xhigh` named with no `model` option**, since its
-frontmatter pins the version and a `model` option outranks that pin.
-`review-gate.py` denies a `fable` model option on every type, and denies
-any `model` or `effort` option on a `Workflow` stage.
+`agent-scope:fable-xhigh` named with no `model` option**: the
+definition's frontmatter pins the version, an invocation-level `model`
+outranks that pin, and the `fable` family alias is configurable and can
+change over time. `review-gate.py` denies a `fable` model option on
+every type, and denies any `model` or `effort` option on a `Workflow`
+stage.
 
 Every `Agent` launch names its type and omits `model`. The types are
 the seven tiers the `agent-scope` plugin ships, agent definitions that
@@ -40,8 +42,8 @@ model, by what the agent produces:
   into Opus-sized briefs changes the question.
 
 Then the effort, by where the oracle lives - what the result is
-checked against. Name it in the brief. Haiku takes no effort level and
-Sonnet stops at high:
+checked against. Name it in the brief. The haiku tier ships with no
+effort level, and the plugin offers Sonnet at medium and high:
 
 - `medium`: the brief names the oracle and the items - these claims at
   these lines, these files against this pattern - and the agent adds
@@ -51,15 +53,17 @@ Sonnet stops at high:
   run, the callers - and the agent adds what the brief did not contain:
   which files matter, what the cause is, what is wrong, the code a
   brief specifies. A reader checks the addition against that oracle.
-- `xhigh`: no oracle exists outside the agent; its own derivation is
-  the oracle - a formula or bound, a proof of an invariant, an
-  equivalence no test can settle, an interleaving analysis with no
-  reproducer, the joint behavior of separately designed parts. A reader
-  checks only by deriving it too. The launch names the kind in
-  `derive:`; a task that is merely hard, large, or sensitive is `high`.
-  Both `agent-scope:opus-xhigh` and `agent-scope:fable-xhigh` sit here
-  and spend the same derive seats; take `opus-xhigh` unless the brief
-  fails to split.
+- `xhigh`: no oracle outside the agent settles the principal claim, so
+  the agent must derive it - a formula or bound, a proof of an
+  invariant, an equivalence no test can settle, an interleaving
+  analysis with no reproducer, the joint behavior of separately
+  designed parts. A reader checks only by deriving it too. Partial
+  tests, numerical probes, and counterexamples stay useful as checks;
+  their availability alone does not settle the claim. The launch names
+  the kind in `derive:`; a task that is merely hard, large, or
+  sensitive is `high`. Both `agent-scope:opus-xhigh` and
+  `agent-scope:fable-xhigh` sit here and spend the same derive seats;
+  take `opus-xhigh` unless the brief fails to split.
 
 | Situation                                   | Action                                           |
 | ------------------------------------------- | ------------------------------------------------ |
