@@ -145,8 +145,9 @@ the bare name `haiku` gets:
 review-gate: the tiers are the agent-scope plugin's agents; name agent-scope:haiku, not haiku.
 ```
 
-The gate also denies a `fable` model named outside
-`agent-scope:fable-xhigh`, `general-purpose`, an omitted type,
+The gate also denies a `fable` model option on any type, including
+`agent-scope:fable-xhigh`, whose frontmatter pins the version a model
+option would outrank; `general-purpose`, an omitted type,
 a prefixed name that is not one of the seven tiers, an Opus launch with no
 header, and a Workflow stage that carries a `model` or `effort` option
 beside its `agentType`. `Plan` and a `fork` run on the main-loop model, so

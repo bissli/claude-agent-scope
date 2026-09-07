@@ -1587,17 +1587,22 @@ def test_fable_xhigh_without_a_kind_is_denied_and_takes_no_seat(gate):
     assert 'opus-xhigh seat 1/1' in seat_message(gate.gate_agent(xhigh('review', '6')))
 
 
-def test_a_fable_model_is_denied_outside_its_tier(gate):
-    """Verify the fable alias stays reachable only through fable-xhigh.
+def test_a_fable_model_option_is_denied_even_beside_its_tier(gate):
+    """Verify fable is reachable only through the tier's frontmatter pin.
 
-    Mutation: dropping the model check once the tier exists, so any type
-        could name fable and inherit the session effort instead of the
-        frontmatter pin.
-    Oracle: model fable on an ordinary tier is denied; the same model on
-        agent-scope:fable-xhigh, whose frontmatter pins it, seats 1/1.
+    Mutation: exempting the fable tier from the model check. The Agent
+        tool's model parameter outranks definition frontmatter, so the
+        bare alias would resolve to the account's default fable version
+        rather than the version the tier pins.
+    Oracle: model fable is denied on an ordinary tier and on
+        agent-scope:fable-xhigh alike, both denials naming the tier; the
+        same tier with no model option seats 1/1.
     """
-    output = gate.gate_agent(agent_input('ordinary task', model='fable'))
-    assert decision(output) == 'deny'
-    assert 'fable' in reason(output)
-    output = gate.gate_agent(fable('review', '6', model='fable'))
+    for launch in (
+            agent_input('ordinary task', model='fable'),
+            fable('review', '6', model='fable')):
+        output = gate.gate_agent(launch)
+        assert decision(output) == 'deny'
+        assert 'agent-scope:fable-xhigh' in reason(output)
+    output = gate.gate_agent(fable('review', '6'))
     assert 'fable-xhigh seat 1/1' in seat_message(output)

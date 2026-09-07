@@ -52,7 +52,8 @@ Notes
 - An Opus-tier launch with no header is denied. Work outside a review
   declares round swarm, a fourth round counted and capped like review
   on its own counter. A cheap launch may omit the header, and a fable
-  model named outside agent-scope:fable-xhigh is denied.
+  model option is always denied: agent-scope:fable-xhigh pins the
+  version in frontmatter, which a model option would outrank.
 - Silence lets the call continue; a JSON deny blocks it. An allowed
   deriving launch prints a JSON systemMessage naming the seat, the
   kind, and the label; the user sees it and the call continues.
@@ -811,10 +812,12 @@ def gate_agent(hook_input: dict[str, Any]) -> dict[str, Any] | None:
         'agent_type': agent_type or None,
         'label': tool_input.get('description'),
         }
-    if model == 'fable' and not (scoped and tier_name in FABLE_TIERS):
+    if model == 'fable':
         return deny(
-            f'review-gate: a fable model belongs to {TIER_PREFIX}{FABLE_TIERS[0]}, '
-            f'whose frontmatter pins it; name a tier type instead: {TIERS_TEXT}.',
+            f'review-gate: name {TIER_PREFIX}{FABLE_TIERS[0]} with no model '
+            'option. Its frontmatter pins the fable version, and a model option '
+            'outranks that pin, so the alias would resolve to whatever the '
+            'account defaults to.',
             event)
     if not scoped and tier_name in INHERITING_TYPES:
         return deny(

@@ -5,9 +5,10 @@ whole conversation at that price every turn. Delegate grunt work and
 keep throwaway output (file dumps, logs) out of the main context.
 
 **A `fable` model reaches a delegated agent only as
-`agent-scope:fable-xhigh`**, whose frontmatter pins it. `review-gate.py`
-denies a `fable` model named on any other type, and denies any `model` or
-`effort` option on a `Workflow` stage.
+`agent-scope:fable-xhigh` named with no `model` option**, since its
+frontmatter pins the version and a `model` option outranks that pin.
+`review-gate.py` denies a `fable` model option on every type, and denies
+any `model` or `effort` option on a `Workflow` stage.
 
 Every `Agent` launch names its type and omits `model`. The types are
 the seven tiers the `agent-scope` plugin ships, agent definitions that
