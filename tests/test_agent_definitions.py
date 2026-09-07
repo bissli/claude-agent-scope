@@ -14,6 +14,8 @@ EXPECTED = {
     'opus-medium': ('claude-opus-5', 'medium', 'Counts as an Opus reviewer'),
     'opus-high': ('claude-opus-5', 'high', 'Three per round is the default cap'),
     'opus-xhigh': ('claude-opus-5', 'xhigh', 'declares derive:'),
+    'fable-xhigh': (
+        'claude-fable-5-1', 'xhigh', "takes one of the cycle's derive seats"),
     'sonnet-medium': ('sonnet', 'medium', 'Never takes an Opus slot'),
     'sonnet-high': ('sonnet', 'high', 'Never takes an Opus slot'),
     'haiku': ('haiku', None, 'Never takes an Opus slot'),
@@ -32,12 +34,12 @@ def frontmatter(path):
     return fields
 
 
-def test_the_tier_files_are_exactly_the_six_tiers():
-    """Verify the agents/ directory contains exactly the six plugin tiers.
+def test_the_tier_files_are_exactly_the_shipped_tiers():
+    """Verify the agents/ directory contains exactly the plugin's tiers.
 
     Mutation: renaming or deleting a tier file, or adding a type the
         directive does not describe.
-    Oracle: the hand-listed six tier names.
+    Oracle: the hand-listed tier names in EXPECTED.
     """
     assert {path.stem for path in AGENTS_DIR.glob('*.md')} == set(EXPECTED)
 
@@ -72,11 +74,12 @@ def test_definition_pins_name_model_effort_and_gate_sentence(stem):
     assert gate_phrase in fields['description']
 
 
-@pytest.mark.parametrize('stem', ['opus-medium', 'opus-high', 'opus-xhigh'])
-def test_opus_definitions_name_the_header_rule(stem):
-    """Verify each Opus tier tells a launching agent to open with the header.
+@pytest.mark.parametrize(
+    'stem', ['opus-medium', 'opus-high', 'opus-xhigh', 'fable-xhigh'])
+def test_capped_definitions_name_the_header_rule(stem):
+    """Verify each capped tier tells a launching agent to open with the header.
 
-    Mutation: dropping the header sentence from an Opus description, so a
+    Mutation: dropping the header sentence from a capped description, so a
         launching agent learns the rule only from the deny.
     Oracle: the phrase round: swarm in the description.
     """

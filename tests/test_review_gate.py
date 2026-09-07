@@ -93,6 +93,13 @@ def xhigh(round_name='review', opus_cap='6', derive='proof', **kwargs):
     return agent_input(prompt, subagent_type='agent-scope:opus-xhigh', **kwargs)
 
 
+def fable(round_name='review', opus_cap='6', derive='joint-behavior', **kwargs):
+    """Build a fable-xhigh launch with a kind, at the smallest cap with a seat.
+    """
+    prompt = header(round_name, opus_cap, derive)
+    return agent_input(prompt, subagent_type='agent-scope:fable-xhigh', **kwargs)
+
+
 def decision(output):
     """Return the permissionDecision of a hook result, or None for an allow.
 
@@ -283,7 +290,7 @@ def test_swarm_round_draws_on_the_cycle_seat(gate):
     assert decision(gate.gate_agent(xhigh('swarm'))) is None
     output = gate.gate_agent(xhigh('review'))
     assert decision(output) == 'deny'
-    assert 'admits 1 opus-xhigh; this would be #2' in reason(output)
+    assert 'holds 1 derive seat; this would be #2' in reason(output)
 
 
 def test_only_leading_header_is_control_metadata(gate):
@@ -365,7 +372,7 @@ def test_prefixed_nonexistent_tier_denied_and_takes_no_slot(gate):
     Mutation: dropping the scoped-non-tier branch so a typo like
         agent-scope:opus-hgih with a valid header is allowed and counted.
     Oracle: agent-scope:opus-hgih with a valid header is denied naming
-        the six tiers; three subsequent agent-scope:opus-high launches all
+        the tiers; three subsequent agent-scope:opus-high launches all
         allow, proving no slot was taken.
     """
     output = gate.gate_agent(
@@ -797,7 +804,7 @@ def test_derive_on_another_tier_is_denied_and_takes_no_slot(gate, subagent_type)
     payload = agent_input(header(derive='proof'), subagent_type=subagent_type)
     output = gate.gate_agent(payload)
     assert decision(output) == 'deny'
-    assert 'derive belongs on an opus-xhigh launch' in reason(output)
+    assert 'derive belongs on a deriving tier' in reason(output)
     assert f'{subagent_type} declared derive: proof' in reason(output)
     assert all(gate.gate_agent(agent_input(header())) is None for _ in range(3))
 
@@ -836,7 +843,7 @@ def test_second_xhigh_at_cap_6_is_denied_and_takes_no_slot(gate):
     output = gate.gate_agent(xhigh())
     assert decision(output) == 'deny'
     assert 'opus-high' in reason(output)
-    assert 'admits 1 opus-xhigh' in reason(output)
+    assert 'holds 1 derive seat' in reason(output)
     assert '#2' in reason(output)
     assert all(gate.gate_agent(high) is None for _ in range(4))
     assert decision(gate.gate_agent(high)) == 'deny'
@@ -855,7 +862,7 @@ def test_cap_3_seats_no_xhigh_and_fixes_nothing(gate):
     """
     output = gate.gate_agent(xhigh('review', '3'))
     assert decision(output) == 'deny'
-    assert 'a cycle at opus-cap 3 seats no opus-xhigh' in reason(output)
+    assert 'a cycle at opus-cap 3 holds no derive seat' in reason(output)
     assert 'opus-cap 6 or 9' in reason(output)
     line = last_log(gate)
     assert (line['refusal'], line['seat_n'], line['seat_cap']) == ('seat', 1, 0)
@@ -878,7 +885,7 @@ def test_each_opus_cap_sets_its_xhigh_seats(gate, opus_cap, seats):
         assert f'opus-xhigh seat {taken}/{seats}' in seat_message(output)
     output = gate.gate_agent(xhigh('verify', opus_cap))
     assert decision(output) == 'deny'
-    assert f'a cycle at opus-cap {opus_cap} admits {seats} opus-xhigh' in (
+    assert f'a cycle at opus-cap {opus_cap} holds {seats} derive seat' in (
         reason(output))
     assert f'#{seats + 1}' in reason(output)
 
@@ -969,7 +976,7 @@ def test_xhigh_seat_is_per_cycle_across_all_four_rounds(gate):
     assert decision(gate.gate_agent(xhigh('swarm', '9'))) is None
     output = gate.gate_agent(xhigh('synthesize', '9'))
     assert decision(output) == 'deny'
-    assert 'admits 2 opus-xhigh; this would be #3' in reason(output)
+    assert 'holds 2 derive seats; this would be #3' in reason(output)
     cycle = next(iter(json.loads(state_file(gate).read_text())['cycles'].values()))
     assert cycle['xhigh'] == 2
     assert not any(key.endswith('-xhigh') for key in cycle)
@@ -1529,3 +1536,68 @@ def test_cli_end_to_end(tmp_path, interpreter):
     assert 'name the tier' in odd['permissionDecisionReason']
     seated = json.dumps(xhigh(prompt_id='turn-2'))
     assert 'opus-xhigh seat 1/1' in json.loads(run(seated))['systemMessage']
+
+
+def test_fable_xhigh_draws_on_the_same_seat_as_opus_xhigh(gate):
+    """Verify the two deriving tiers share one seat counter.
+
+    Mutation: keying the seat counter on the tier, so each deriving tier
+        spends the cycle's full allowance and a cap of 6 admits two.
+    Oracle: at opus-cap 6, which holds one seat, opus-xhigh takes 1/1 and
+        the following fable-xhigh is refused on the seat, not the round
+        cap, which still has four slots free.
+    """
+    assert 'opus-xhigh seat 1/1' in seat_message(gate.gate_agent(xhigh('review', '6')))
+    output = gate.gate_agent(fable('review', '6'))
+    assert decision(output) == 'deny'
+    assert 'holds 1 derive seat' in reason(output)
+
+
+def test_one_brief_per_deriving_tier_fits_at_opus_cap_9(gate):
+    """Verify a cycle with a brief for each deriving tier seats both at 9.
+
+    Mutation: admitting fable-xhigh only where no opus-xhigh has seated,
+        which would make the two tiers exclusive rather than sharing an
+        allowance that grows with the number of deriving briefs.
+    Oracle: opus-xhigh takes seat 1/2, fable-xhigh takes seat 2/2, and a
+        third deriving launch is denied naming #3.
+    """
+    assert 'opus-xhigh seat 1/2' in seat_message(gate.gate_agent(xhigh('review', '9')))
+    assert 'fable-xhigh seat 2/2' in seat_message(gate.gate_agent(fable('verify', '9')))
+    output = gate.gate_agent(fable('verify', '9'))
+    assert decision(output) == 'deny'
+    assert '#3' in reason(output)
+
+
+def test_fable_xhigh_without_a_kind_is_denied_and_takes_no_seat(gate):
+    """Verify fable-xhigh requires derive: exactly as opus-xhigh does.
+
+    Mutation: requiring the kind on opus-xhigh alone, leaving the more
+        expensive tier the one that launches unmarked, or refusing after
+        the seat is taken so the refusal costs the cycle its allowance.
+    Oracle: the deny names the launched tier, and the seat is still free
+        afterwards for an opus-xhigh launch to take as 1/1.
+    """
+    output = gate.gate_agent(
+        agent_input(
+            header('review', '6', None),
+            subagent_type='agent-scope:fable-xhigh'))
+    assert decision(output) == 'deny'
+    assert 'agent-scope:fable-xhigh needs derive:' in reason(output)
+    assert 'opus-xhigh seat 1/1' in seat_message(gate.gate_agent(xhigh('review', '6')))
+
+
+def test_a_fable_model_is_denied_outside_its_tier(gate):
+    """Verify the fable alias stays reachable only through fable-xhigh.
+
+    Mutation: dropping the model check once the tier exists, so any type
+        could name fable and inherit the session effort instead of the
+        frontmatter pin.
+    Oracle: model fable on an ordinary tier is denied; the same model on
+        agent-scope:fable-xhigh, whose frontmatter pins it, seats 1/1.
+    """
+    output = gate.gate_agent(agent_input('ordinary task', model='fable'))
+    assert decision(output) == 'deny'
+    assert 'fable' in reason(output)
+    output = gate.gate_agent(fable('review', '6', model='fable'))
+    assert 'fable-xhigh seat 1/1' in seat_message(output)

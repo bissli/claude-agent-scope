@@ -14,9 +14,9 @@ Notes
 -----
 - Every launch names its tier under the plugin prefix: subagent_type
   agent-scope:opus-medium, agent-scope:opus-high, agent-scope:opus-xhigh,
-  agent-scope:sonnet-medium, agent-scope:sonnet-high, or
-  agent-scope:haiku, each an agent definition that pins its model and
-  effort. A launch on general-purpose or with no type would inherit the
+  agent-scope:fable-xhigh, agent-scope:sonnet-medium,
+  agent-scope:sonnet-high, or agent-scope:haiku, each an agent
+  definition that pins its model and effort. A launch on general-purpose or with no type would inherit the
   session effort and is denied; so is a bare tier name, which names no
   agent the plugin ships, and a prefixed name that is not a tier.
 - Only an Opus-tier agent takes a slot. An explicit haiku or sonnet
@@ -30,16 +30,18 @@ Notes
   that many Opus agents. The synthesize round holds 2 per cycle at any
   opus-cap; a synthesize agent never fixes the value, and one it
   declares must match the fixed value.
-- An opus-xhigh agent declares derive in every round, one of six
-  kinds, naming what it must derive; a missing or unknown kind, or the
-  field on any other tier, is denied before a slot is taken. The
-  cycle's opus-cap sets its opus-xhigh seats, none at 3, one at 6, two
-  at 9, on one counter across the rounds; a launch past the seats is
-  denied naming opus-high and takes no slot. An opus-xhigh synthesize
+- A deriving agent, opus-xhigh or fable-xhigh, declares derive in every
+  round, one of six kinds, naming what it must derive; a missing or
+  unknown kind, or the field on any other tier, is denied before a slot
+  is taken. The cycle's opus-cap sets its derive seats, none at 3, one
+  at 6, two at 9, on one counter the two tiers share across the rounds;
+  a launch past the seats is denied naming opus-high and takes no slot.
+  Two deriving briefs declare opus-cap 9, which seats both, so the
+  tiers do not compete. A deriving synthesize
   agent is denied until a review, verify, or swarm agent has fixed the
   opus-cap, since the seat count reads off it and a synthesize agent
   cannot fix it. Refusals apply in the order mismatch, unfixed cycle,
-  Opus cap, xhigh seat.
+  Opus cap, derive seat.
 - A cycle is one user prompt. The key is the payload's prompt_id,
   unless the transcript shows that id stamped on a system record, a
   background task's completion re-entering the turn, in which case the
@@ -50,9 +52,9 @@ Notes
 - An Opus-tier launch with no header is denied. Work outside a review
   declares round swarm, a fourth round counted and capped like review
   on its own counter. A cheap launch may omit the header, and a fable
-  model is always denied.
+  model named outside agent-scope:fable-xhigh is denied.
 - Silence lets the call continue; a JSON deny blocks it. An allowed
-  opus-xhigh launch prints a JSON systemMessage naming the seat, the
+  deriving launch prints a JSON systemMessage naming the seat, the
   kind, and the label; the user sees it and the call continues.
 - A Workflow call is gated from its script text: every agent() stage is
   read as one Agent launch. The stage names its tier, prefix included
@@ -114,9 +116,12 @@ HEADER_FIELDS = {'round', 'opus-cap', 'derive'}
 PLUGIN_NAME = 'agent-scope'
 TIER_PREFIX = f'{PLUGIN_NAME}:'
 OPUS_TIERS = ('opus-medium', 'opus-high', 'opus-xhigh')
-XHIGH_TIER = 'opus-xhigh'
+FABLE_TIERS = ('fable-xhigh',)
+CAPPED_TIERS = OPUS_TIERS + FABLE_TIERS
+SEAT_TIERS = ('opus-xhigh', 'fable-xhigh')
 CHEAP_TIERS = ('sonnet-medium', 'sonnet-high', 'haiku')
-TIERS = OPUS_TIERS + CHEAP_TIERS
+TIERS = CAPPED_TIERS + CHEAP_TIERS
+SEAT_TIERS_TEXT = ' and '.join(TIER_PREFIX + tier for tier in SEAT_TIERS)
 TIERS_TEXT = ', '.join(TIER_PREFIX + tier for tier in TIERS)
 INHERITING_TYPES = {'', 'general-purpose'}
 FORK_TYPE = 'fork'
@@ -552,11 +557,11 @@ class Reservation:
         fixed one.
     refusal : str or None
         None when allowed, else the rule that refused: 'mismatch' (the
-        declaration differs from fixed), 'unfixed' (an opus-xhigh
+        declaration differs from fixed), 'unfixed' (a deriving
         synthesize agent before any opus-cap is fixed), 'cap' (the
         round's Opus cap), or 'seat' (the cycle's xhigh seats).
     seat : int or None
-        On an opus-xhigh request against a fixed opus-cap, the seat this
+        On a deriving request against a fixed opus-cap, the seat this
         call took or would take; None otherwise.
     seats : int or None
         The cycle's seat count, XHIGH_SEATS[fixed], beside seat.
@@ -590,8 +595,8 @@ def reserve_slots(
         CAPS, on a review, verify, or swarm agent; on a synthesize agent,
         None or a value to hold against the fixed opus-cap, which it
         never fixes.
-        xhigh marks the opus-xhigh tier, which also takes one of the
-        cycle's xhigh seats.
+        xhigh marks a deriving tier, opus-xhigh or fable-xhigh, which
+        also takes one of the cycle's derive seats.
 
     Returns
     -------
@@ -607,10 +612,10 @@ def reserve_slots(
       check that turns the declared string into its int. The synthesize
       cap is SYNTHESIZE_CAP at any opus-cap; a synthesize agent never
       fixes the value, and one it declares while a value is fixed must
-      match it. An opus-xhigh synthesize agent is refused while nothing
+      match it. A deriving synthesize agent is refused while nothing
       is fixed, since it cannot fix the value itself.
-    - The cycle holds XHIGH_SEATS[opus_cap] opus-xhigh seats on one
-      counter across the four rounds. Refusals apply in the order
+    - The cycle holds XHIGH_SEATS[opus_cap] derive seats on one counter
+      across the four rounds, which the deriving tiers share. Refusals apply in the order
       mismatch, unfixed, Opus cap, seat, so a seat refusal always names
       a remedy with room.
     - An Agent launch is a batch of one. A Workflow script is a batch of
@@ -687,7 +692,7 @@ def reserve_slots(
 
 
 def seat_line(seat_text: str, derive: str, label: str) -> str:
-    """Return the systemMessage line for an allowed opus-xhigh launch.
+    """Return the systemMessage line for an allowed deriving launch.
 
     Parameters
     ----------
@@ -735,18 +740,19 @@ def refusal_reason(slot: Reservation, round_name: str) -> str:
             'uncapped.')
     if slot.refusal == 'unfixed':
         return (
-            f'{XHIGH_TIER} in the synthesize round needs a cycle whose opus-cap a '
+            'a deriving tier in the synthesize round needs a cycle whose opus-cap a '
             'review, verify, or swarm agent has fixed, since the seat count reads '
             f'off it; use {TIER_PREFIX}opus-high.')
     if slot.refusal == 'seat' and slot.cap == 0:
         return (
-            f'a cycle at opus-cap {slot.fixed} seats no {XHIGH_TIER}. A cycle with a '
+            f'a cycle at opus-cap {slot.fixed} holds no derive seat. A cycle with a '
             'deriving brief declares opus-cap 6 or 9 from its first Opus agent; '
             f'otherwise run this brief on {TIER_PREFIX}opus-high, which the '
             f'{round_name} round still has room for.')
     if slot.refusal == 'seat':
         return (
-            f'a cycle at opus-cap {slot.fixed} admits {slot.cap} {XHIGH_TIER}; this '
+            f'a cycle at opus-cap {slot.fixed} holds {slot.cap} derive '
+            f'seat{"s" if slot.cap != 1 else ""}; this '
             f'would be #{slot.number}. Run the other briefs on '
             f'{TIER_PREFIX}opus-high, which the {round_name} round still has room '
             'for.')
@@ -780,7 +786,7 @@ def gate_agent(hook_input: dict[str, Any]) -> dict[str, Any] | None:
     - Order of checks: fable model, tier named under the prefix, header
       syntax, header present on an Opus-tier launch, round present and
       valid, opus-cap value, derive value and tier, uncapped tiers, derive
-      present on opus-xhigh, opus-cap presence on review, verify, and
+      present on a deriving tier, opus-cap presence on review, verify, and
       swarm, cycle key, then the slot reservation.
     - An allowed opus-xhigh launch returns a systemMessage envelope
       with no permission decision: the call continues and the user
@@ -805,10 +811,10 @@ def gate_agent(hook_input: dict[str, Any]) -> dict[str, Any] | None:
         'agent_type': agent_type or None,
         'label': tool_input.get('description'),
         }
-    if model == 'fable':
+    if model == 'fable' and not (scoped and tier_name in FABLE_TIERS):
         return deny(
-            'review-gate: delegated agents may not use fable; name a tier type '
-            f'instead: {TIERS_TEXT}.',
+            f'review-gate: a fable model belongs to {TIER_PREFIX}{FABLE_TIERS[0]}, '
+            f'whose frontmatter pins it; name a tier type instead: {TIERS_TEXT}.',
             event)
     if not scoped and tier_name in INHERITING_TYPES:
         return deny(
@@ -859,19 +865,19 @@ def gate_agent(hook_input: dict[str, Any]) -> dict[str, Any] | None:
             'subject matter are not kinds. Where none fits the brief, use '
             f'{TIER_PREFIX}opus-high.',
             {**event, 'derive': derive})
-    if derive is not None and tier_name != XHIGH_TIER:
+    if derive is not None and tier_name not in SEAT_TIERS:
         return deny(
-            f'review-gate: derive belongs on an {XHIGH_TIER} launch; {agent_type} '
-            f'declared derive: {derive}. Drop the field, or launch the deriving '
-            f'brief on {TIER_PREFIX}{XHIGH_TIER}.',
+            f'review-gate: derive belongs on a deriving tier; {agent_type} declared '
+            f'derive: {derive}. Drop the field, or launch the deriving brief on '
+            f'{SEAT_TIERS_TEXT}.',
             {**event, 'derive': derive})
     if is_uncapped(tool_input):
         allow({**event, 'scope': 'uncapped'})
         return None
-    is_xhigh = tier_name == XHIGH_TIER
-    if is_xhigh and derive is None:
+    takes_seat = tier_name in SEAT_TIERS
+    if takes_seat and derive is None:
         return deny(
-            f'review-gate: {XHIGH_TIER} needs derive: <kind> in the header, one of '
+            f'review-gate: {agent_type} needs derive: <kind> in the header, one of '
             f'{KINDS_TEXT}. Where an oracle outside the agent checks the result - a '
             f'spec, a schema, a test run, the callers - use {TIER_PREFIX}opus-high.',
             {**event, 'opus_cap': opus_cap})
@@ -881,18 +887,18 @@ def gate_agent(hook_input: dict[str, Any]) -> dict[str, Any] | None:
             '3, 6, or 9 in the leading header.',
             event)
 
-    if is_xhigh:
+    if takes_seat:
         event['derive'] = derive
     label = str(event['label'] or 'unlabeled')
     turn = turn_key(hook_input)
     if turn is None:
         allow({**event, 'opus_cap': opus_cap, 'scope': 'no-turn'})
-        if is_xhigh:
+        if takes_seat:
             return {'systemMessage': seat_line(
-                f'{XHIGH_TIER} uncounted, no cycle key', derive, label)}
+                f'{tier_name} uncounted, no cycle key', derive, label)}
         return None
     session_id = str(hook_input.get('session_id') or 'nosession')
-    slot = reserve_slots(session_id, turn, [(round_name, opus_cap, is_xhigh)])[0]
+    slot = reserve_slots(session_id, turn, [(round_name, opus_cap, takes_seat)])[0]
     event.update({'turn': turn, 'opus_cap': opus_cap})
     if slot.refusal != 'seat':
         event.update({'round_n': slot.number, 'round_cap': slot.cap})
@@ -900,9 +906,9 @@ def gate_agent(hook_input: dict[str, Any]) -> dict[str, Any] | None:
         event.update({'seat_n': slot.seat, 'seat_cap': slot.seats})
     if slot.refusal is None:
         allow(event)
-        if is_xhigh:
+        if takes_seat:
             return {'systemMessage': seat_line(
-                f'{XHIGH_TIER} seat {slot.seat}/{slot.seats}', derive, label)}
+                f'{tier_name} seat {slot.seat}/{slot.seats}', derive, label)}
         return None
     event['refusal'] = slot.refusal
     if slot.refusal == 'mismatch':
@@ -1728,8 +1734,8 @@ def gate_workflow(hook_input: dict[str, Any]) -> dict[str, Any] | None:
                 f'review-gate: {where}: agentType {stage.tier} is not a tier; '
                 f'use {tiers}.',
                 site)
-        is_opus = tier in OPUS_TIERS
-        if is_opus and stage.multiplied:
+        is_capped = tier in CAPPED_TIERS
+        if is_capped and stage.multiplied:
             return deny(
                 f'review-gate: {where}: an Opus stage inside {stage.multiplied} '
                 'may run more than once. Write each Opus stage as one agent() call '
@@ -1737,7 +1743,7 @@ def gate_workflow(hook_input: dict[str, Any]) -> dict[str, Any] | None:
                 '.catch(), or .finally() continuation; fan-out runs on '
                 f'{TIER_PREFIX}sonnet-high or {TIER_PREFIX}haiku.',
                 site)
-        if is_opus and stage.prefix is None:
+        if is_capped and stage.prefix is None:
             return deny(
                 f'review-gate: {where}: an Opus stage opens its prompt with a '
                 'string or template literal so the gate can read its review-gate '
@@ -1745,7 +1751,7 @@ def gate_workflow(hook_input: dict[str, Any]) -> dict[str, Any] | None:
                 'Write the header as the first text of the literal, then ${...} '
                 'for the rest.',
                 site)
-        if is_opus and stage.prefix == '':
+        if is_capped and stage.prefix == '':
             return deny(
                 f'review-gate: {where}: an Opus stage opens its prompt literal '
                 'with the review-gate header itself; a leading ${...} hides it, '
@@ -1758,7 +1764,7 @@ def gate_workflow(hook_input: dict[str, Any]) -> dict[str, Any] | None:
         if header_error:
             return deny(f'review-gate: {where}: {header_error}.', site)
         if header is None:
-            if is_opus:
+            if is_capped:
                 return deny(
                     f'review-gate: {where}: an Opus stage opens its prompt with a '
                     '<review-gate> header; work outside a review declares round: '
@@ -1787,19 +1793,19 @@ def gate_workflow(hook_input: dict[str, Any]) -> dict[str, Any] | None:
                 'importance, breadth, and subject matter are not kinds. Where none '
                 f'fits the brief, use {TIER_PREFIX}opus-high.',
                 {**site, 'derive': derive})
-        if derive is not None and tier != XHIGH_TIER:
+        if derive is not None and tier not in SEAT_TIERS:
             return deny(
-                f'review-gate: {where}: derive belongs on an {XHIGH_TIER} stage; '
+                f'review-gate: {where}: derive belongs on a deriving tier; '
                 f'{stage.tier} declared derive: {derive}. Drop the field, or run '
-                f'the deriving brief on {TIER_PREFIX}{XHIGH_TIER}.',
+                f'the deriving brief on {SEAT_TIERS_TEXT}.',
                 {**site, 'derive': derive})
-        if not is_opus:
+        if not is_capped:
             site_events.append({**site, 'scope': 'uncapped'})
             continue
-        is_xhigh = tier == XHIGH_TIER
-        if is_xhigh and derive is None:
+        takes_seat = tier in SEAT_TIERS
+        if takes_seat and derive is None:
             return deny(
-                f'review-gate: {where}: {XHIGH_TIER} needs derive: <kind> in the '
+                f'review-gate: {where}: {stage.tier} needs derive: <kind> in the '
                 f'header, one of {KINDS_TEXT}. Where an oracle outside the agent '
                 'checks the result - a spec, a schema, a test run, the callers - '
                 f'use {TIER_PREFIX}opus-high.',
@@ -1810,21 +1816,22 @@ def gate_workflow(hook_input: dict[str, Any]) -> dict[str, Any] | None:
                 'opus-cap: 3, 6, or 9 in the leading header.',
                 site)
         site['opus_cap'] = opus_cap
-        if is_xhigh:
+        if takes_seat:
             site['derive'] = derive
-        requests.append((len(site_events), round_name, opus_cap, is_xhigh))
+            site['tier'] = tier
+        requests.append((len(site_events), round_name, opus_cap, takes_seat))
         site_events.append(site)
 
     seat_lines: list[str] = []
     if requests:
         turn = turn_key(hook_input)
         if turn is None:
-            for position, _, _, is_xhigh in requests:
+            for position, _, _, takes_seat in requests:
                 site = site_events[position]
                 site['scope'] = 'no-turn'
-                if is_xhigh:
+                if takes_seat:
                     seat_lines.append(seat_line(
-                        f'{XHIGH_TIER} uncounted, no cycle key',
+                        f'{site["tier"]} uncounted, no cycle key',
                         site['derive'],
                         stage_label(site)))
         else:
@@ -1832,7 +1839,7 @@ def gate_workflow(hook_input: dict[str, Any]) -> dict[str, Any] | None:
             slots = reserve_slots(
                 session_id, turn, [request[1:] for request in requests])
             for request, slot in zip(requests, slots):
-                position, round_name, _, is_xhigh = request
+                position, round_name, _, takes_seat = request
                 site = site_events[position]
                 site['turn'] = turn
                 if slot.refusal != 'seat':
@@ -1840,9 +1847,9 @@ def gate_workflow(hook_input: dict[str, Any]) -> dict[str, Any] | None:
                 if slot.seat is not None:
                     site.update({'seat_n': slot.seat, 'seat_cap': slot.seats})
                 if slot.refusal is None:
-                    if is_xhigh:
+                    if takes_seat:
                         seat_lines.append(seat_line(
-                            f'{XHIGH_TIER} seat {slot.seat}/{slot.seats}',
+                            f'{site["tier"]} seat {slot.seat}/{slot.seats}',
                             site['derive'],
                             stage_label(site)))
                     continue

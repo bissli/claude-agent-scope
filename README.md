@@ -1,6 +1,6 @@
 # agent-scope
 
-Six subagent tiers that pin model and effort, a PreToolUse gate that caps
+Seven subagent tiers that pin model and effort, a PreToolUse gate that caps
 Opus fan-out per review round, and the directives that pick a tier.
 
 ## Install
@@ -11,19 +11,19 @@ Opus fan-out per review round, and the directives that pick a tier.
 ```
 
 The first command registers this repo as a plugin source (a "marketplace");
-the second installs the six tier agents, the two hooks, and the two
+the second installs the seven tier agents, the two hooks, and the two
 directives from it, and the next session runs them.
 
 The hooks need `python3` (3.10 or later) on `PATH` and run under `sh`, so
 the plugin runs on Linux and macOS; the Opus tiers pin `claude-opus-5`, so
 the account needs access to that model. Without `python3` the hook commands
 fail and Claude Code continues: the directives do not load, no launch is
-gated, and nothing announces it. On Windows the six tier agents register
+gated, and nothing announces it. On Windows the seven tier agents register
 and the hooks do not run.
 
 ## What changes in a session
 
-- Six subagent types appear, `agent-scope:haiku` through
+- Seven subagent types appear, `agent-scope:haiku` through
   `agent-scope:opus-xhigh`; their descriptions add about 2.7KB to the
   `Agent` tool listing every turn.
 - Two directive files, 3.4KB and 4.8KB, print into context at session
@@ -50,7 +50,7 @@ launch past the cap and names the fix.
 
 | Component                 | Path                                  | What it does                                                                                                  |
 | ------------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| Six tier definitions      | `agents/*.md`                         | Pin model and effort; registered as `agent-scope:<tier>`                                                      |
+| Seven tier definitions    | `agents/*.md`                         | Pin model and effort; registered as `agent-scope:<tier>`                                                      |
 | Model pin hook            | `scripts/pin-subagent-model.py`       | Strips bare `opus` alias so the frontmatter pin wins; pins `Explore` to haiku when no model is named          |
 | Review gate               | `scripts/review-gate.py`              | PreToolUse hook on `Agent` and `Workflow`; caps Opus agents per round; requires a header on every Opus launch |
 | Model-selection directive | `directives/agent-model-selection.md` | Injected at session start; the two questions that pick a tier                                                 |
@@ -66,14 +66,15 @@ The sonnet and haiku tiers name the family alias, which resolves to the
 account's default for that family or to `ANTHROPIC_DEFAULT_SONNET_MODEL`
 and `ANTHROPIC_DEFAULT_HAIKU_MODEL` where those are set.
 
-| Type                        | Model         | Effort | Use                                                                            |
-| --------------------------- | ------------- | ------ | ------------------------------------------------------------------------------ |
-| `agent-scope:haiku`         | haiku         | -      | Search, grep fan-out, classification, throwaway output                         |
-| `agent-scope:sonnet-medium` | sonnet        | medium | Checklist sweeps, scripted checks, bulk edits, extraction                      |
-| `agent-scope:sonnet-high`   | sonnet        | high   | Code, tests, edits, single-module debugging, review coverage past the Opus cap |
-| `agent-scope:opus-medium`   | claude-opus-5 | medium | Verify with handed claims and lines; mechanical Opus checks                    |
-| `agent-scope:opus-high`     | claude-opus-5 | high   | Review, multi-file debugging, synthesis; the default Opus tier                 |
-| `agent-scope:opus-xhigh`    | claude-opus-5 | xhigh  | Derivation tasks; `derive:` required in header                                 |
+| Type                        | Model            | Effort | Use                                                                            |
+| --------------------------- | ---------------- | ------ | ------------------------------------------------------------------------------ |
+| `agent-scope:haiku`         | haiku            | -      | Search, grep fan-out, classification, throwaway output                         |
+| `agent-scope:sonnet-medium` | sonnet           | medium | Checklist sweeps, scripted checks, bulk edits, extraction                      |
+| `agent-scope:sonnet-high`   | sonnet           | high   | Code, tests, edits, single-module debugging, review coverage past the Opus cap |
+| `agent-scope:opus-medium`   | claude-opus-5    | medium | Verify with handed claims and lines; mechanical Opus checks                    |
+| `agent-scope:opus-high`     | claude-opus-5    | high   | Review, multi-file debugging, synthesis; the default Opus tier                 |
+| `agent-scope:opus-xhigh`    | claude-opus-5    | xhigh  | Derivation tasks; `derive:` required in header                                 |
+| `agent-scope:fable-xhigh`   | claude-fable-5-1 | xhigh  | A derivation that will not split; shares the derive seat                       |
 
 ## Choosing a tier
 
@@ -88,6 +89,9 @@ A verdict on a claim is always Opus, regardless of the other answers.
   one module; a check or sweep with the pattern given.
 - `opus` judges: a review, a verdict on a claim, a cause across files,
   a synthesis.
+- `fable` derives what `opus` cannot hold: a derivation that cannot be
+  posed in parts, because the material must be held whole and any split
+  into Opus-sized briefs changes the question.
 
 **Effort - where the oracle lives:**
 
@@ -96,7 +100,9 @@ A verdict on a claim is always Opus, regardless of the other answers.
 - `high`: the oracle is outside the agent (spec, schema, callers, test
   run); the agent adds what the brief did not contain.
 - `xhigh`: no oracle exists outside the agent; the derivation is the
-  oracle. The `derive:` field names the kind. A task that is merely hard,
+  oracle. The `derive:` field names the kind, on `opus-xhigh` and
+  `fable-xhigh` alike, and the two spend the same seats. A task that is
+  merely hard,
   large, or sensitive is `high`.
 
 Haiku takes no effort level. Sonnet stops at high.
@@ -123,7 +129,7 @@ The first counted Opus `review`, `verify`, or `swarm` agent of a cycle
 fixes `opus-cap` for that cycle. The `synthesize` round holds at most two
 agents per cycle at any cap.
 
-| `opus-cap` | Declared when                              | `opus-xhigh` seats per cycle |
+| `opus-cap` | Declared when                              | derive seats per cycle       |
 | ---------- | ------------------------------------------ | ---------------------------- |
 | `3`        | Up to 3 briefs, none deriving; the default | 0                            |
 | `6`        | 4 to 6 briefs, or one deriving brief       | 1                            |
@@ -139,8 +145,9 @@ the bare name `haiku` gets:
 review-gate: the tiers are the agent-scope plugin's agents; name agent-scope:haiku, not haiku.
 ```
 
-The gate also denies a `fable` model, `general-purpose`, an omitted type,
-a prefixed name that is not one of the six tiers, an Opus launch with no
+The gate also denies a `fable` model named outside
+`agent-scope:fable-xhigh`, `general-purpose`, an omitted type,
+a prefixed name that is not one of the seven tiers, an Opus launch with no
 header, and a Workflow stage that carries a `model` or `effort` option
 beside its `agentType`. `Plan` and a `fork` run on the main-loop model, so
 the gate counts them as Opus-tier and requires the header; `Explore` with

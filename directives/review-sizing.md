@@ -14,9 +14,10 @@ them, or an Opus `verify` agent does and takes a slot.
 `opus-cap` is the Opus ceiling per round, declared from the merged Opus
 briefs of the first round launched. The first Opus `review`, `verify`,
 or `swarm` agent fixes it for the cycle, and no later agent can change
-it; the cap also sets the cycle's `opus-xhigh` seats:
+it; the cap also sets the cycle's derive seats, which
+`opus-xhigh` and `fable-xhigh` spend from together:
 
-| `opus-cap` | Declared when                              | `opus-xhigh` seats per cycle |
+| `opus-cap` | Declared when                              | derive seats per cycle       |
 | ---------- | ------------------------------------------ | ---------------------------- |
 | `3`        | up to 3 briefs, none deriving; the default | 0                            |
 | `6`        | 4 to 6 briefs, or one deriving brief       | 1                            |
@@ -24,7 +25,7 @@ it; the cap also sets the cycle's `opus-xhigh` seats:
 
 File count, diff size, security subject matter, importance, and the
 ultracode setting never raise the cap, and none of them is a derive.
-An `opus-xhigh` seat needs `derive:` naming what the agent derives -
+A derive seat needs `derive:` naming what the agent derives -
 `formula`, `bound`, `proof`, `equivalence`, `interleaving`, or
 `joint-behavior`; the one test is that anything outside the agent
 that checks the result makes the brief `opus-high`. Only Opus-tier
@@ -46,7 +47,7 @@ tier, opens its prompt with this header, one field per line. Opus work
 outside a review declares `round: swarm`, a fourth round counted and
 capped like `review` on its own counter. `opus-cap` goes on every
 Opus `review`, `verify`, or `swarm` agent and carries the cycle's one
-value; `derive` goes on an `opus-xhigh` agent alone, in every round,
+value; `derive` goes on a deriving tier alone, in every round,
 `synthesize` included:
 
     <review-gate>

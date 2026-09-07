@@ -121,24 +121,25 @@ def test_unpinned_stage_is_denied(gate, tier):
 
     Mutation: treating a stage with no tier as uncapped, as an unmarked
         cheap Agent is.
-    Oracle: the deny reason names all six prefixed tiers and the
+    Oracle: the deny reason names every prefixed tier and the
         inherited model.
     """
     out = run(gate, 'await ' + stage("'hi'", tier))
     assert decision(out) == 'deny'
     assert (
         'agent-scope:opus-medium, agent-scope:opus-high, agent-scope:opus-xhigh, '
-        'agent-scope:sonnet-medium, agent-scope:sonnet-high, agent-scope:haiku'
+        'agent-scope:fable-xhigh, agent-scope:sonnet-medium, '
+        'agent-scope:sonnet-high, agent-scope:haiku'
         in reason(out))
     assert 'inherit the main-loop model' in reason(out)
 
 
 def test_named_type_outside_the_tiers_is_denied(gate):
-    """Verify an agentType that is not one of the six tiers is denied.
+    """Verify an agentType that is not one of the tiers is denied.
 
     Mutation: passing any named type, as the Agent rule does; Explore has
         no pin on the Workflow path and would inherit the main-loop model.
-    Oracle: deny reason quotes the type and the six tiers.
+    Oracle: deny reason quotes the type and every tier.
     """
     out = run(gate, 'await ' + stage("'hi'", 'Explore'))
     assert decision(out) == 'deny'
@@ -146,12 +147,12 @@ def test_named_type_outside_the_tiers_is_denied(gate):
 
 
 def test_fork_is_not_a_workflow_tier(gate):
-    """Verify a fork stage is denied as a type outside the six tiers.
+    """Verify a fork stage is denied as a type outside the tiers.
 
     Mutation: adding fork to TIERS for parity with the Agent
         path, where a fork counts as Opus; here fork is not in OPUS_TIERS,
         so the stage would read as cheap, unmarked, and uncounted.
-    Oracle: deny reason quotes fork and the six tiers; no state written.
+    Oracle: deny reason quotes fork and every tier; no state written.
     """
     out = run(gate, 'await ' + stage("'hi'", 'fork'))
     assert decision(out) == 'deny'
@@ -494,7 +495,7 @@ def test_derive_on_a_stage_below_xhigh_is_denied(gate, tier):
     """
     out = run(gate, 'await ' + stage(marked(derive='proof'), tier))
     assert decision(out) == 'deny'
-    expected = f'derive belongs on an opus-xhigh stage; {tier} declared derive: proof'
+    expected = f'derive belongs on a deriving tier; {tier} declared derive: proof'
     assert expected in reason(out)
     assert cycle_state(gate) is None
 
@@ -719,7 +720,7 @@ def test_second_xhigh_seat_in_a_script_is_denied(gate):
         ]
     out = run(gate, thunks(*calls))
     assert decision(out) == 'deny'
-    assert 'admits 1 opus-xhigh; this would be #2' in reason(out)
+    assert 'holds 1 derive seat; this would be #2' in reason(out)
     assert 'opus-high' in reason(out)
     assert cycle_state(gate) == EMPTY_CYCLE
 
@@ -734,7 +735,7 @@ def test_xhigh_stage_at_opus_cap_3_is_refused_on_the_seat(gate):
     """
     out = run(gate, 'await ' + stage(marked(derive='proof'), 'agent-scope:opus-xhigh'))
     assert decision(out) == 'deny'
-    assert 'a cycle at opus-cap 3 seats no opus-xhigh' in reason(out)
+    assert 'a cycle at opus-cap 3 holds no derive seat' in reason(out)
     assert 'opus-cap 6 or 9' in reason(out)
     assert cycle_state(gate) == EMPTY_CYCLE
 
@@ -1048,3 +1049,46 @@ def test_main_fails_open_on_a_workflow_error(gate, monkeypatch, capsys):
     line = last_log(gate)
     assert (line['tool'], line['decision']) == ('Workflow', 'error')
     assert 'boom' in line['reason']
+
+
+def test_a_fable_stage_shares_the_seat_with_an_opus_xhigh_stage(gate):
+    """Verify the two deriving tiers share one seat inside a script.
+
+    Mutation: a per-tier seat counter, which would let a script carry one
+        stage of each at opus-cap 6 and spend two derive seats where the
+        cycle holds one.
+    Oracle: an opus-xhigh stage and a fable-xhigh stage at opus-cap 6 are
+        refused whole, naming one derive seat and #2, and the batch moves
+        no counter.
+    """
+    calls = [
+        stage(marked(opus_cap='6', derive='proof'), 'agent-scope:opus-xhigh'),
+        stage(
+            marked(opus_cap='6', tail='B', derive='joint-behavior'),
+            'agent-scope:fable-xhigh'),
+        ]
+    out = run(gate, thunks(*calls))
+    assert decision(out) == 'deny'
+    assert 'holds 1 derive seat; this would be #2' in reason(out)
+    assert cycle_state(gate) == EMPTY_CYCLE
+
+
+def test_two_deriving_stages_of_different_tiers_fit_at_opus_cap_9(gate):
+    """Verify a script may seat one stage of each deriving tier at 9.
+
+    Mutation: admitting only opus-xhigh to the seat, so a fable-xhigh
+        stage is refused even where the cycle has an unspent seat.
+    Oracle: both stages allow, the systemMessage names seat 1/2 on the
+        opus-xhigh line and seat 2/2 on the fable-xhigh line.
+    """
+    calls = [
+        stage(marked(opus_cap='9', derive='proof'), 'agent-scope:opus-xhigh'),
+        stage(
+            marked(opus_cap='9', tail='B', derive='joint-behavior'),
+            'agent-scope:fable-xhigh'),
+        ]
+    out = run(gate, thunks(*calls))
+    assert decision(out) is None
+    lines = out['systemMessage'].split('\n')
+    assert any('opus-xhigh seat 1/2' in line for line in lines)
+    assert any('fable-xhigh seat 2/2' in line for line in lines)

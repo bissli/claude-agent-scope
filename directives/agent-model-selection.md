@@ -4,20 +4,21 @@ The main loop runs the model named in `settings.json` and re-reads the
 whole conversation at that price every turn. Delegate grunt work and
 keep throwaway output (file dumps, logs) out of the main context.
 
-**NEVER `fable` for a delegated agent** - not an `Agent` call, not a
-`Workflow` `agent()` stage, not a reviewer. `review-gate.py` denies a
-`fable` model on `Agent` and any `model` or `effort` option on a
-`Workflow` stage.
+**A `fable` model reaches a delegated agent only as
+`agent-scope:fable-xhigh`**, whose frontmatter pins it. `review-gate.py`
+denies a `fable` model named on any other type, and denies any `model` or
+`effort` option on a `Workflow` stage.
 
 Every `Agent` launch names its type and omits `model`. The types are
-the six tiers the `agent-scope` plugin ships, agent definitions that
+the seven tiers the `agent-scope` plugin ships, agent definitions that
 pin model and effort, named with the plugin prefix:
 `agent-scope:haiku`, `agent-scope:sonnet-medium`,
 `agent-scope:sonnet-high`, `agent-scope:opus-medium`,
-`agent-scope:opus-high`, `agent-scope:opus-xhigh` - plus `Explore`,
+`agent-scope:opus-high`, `agent-scope:opus-xhigh`,
+`agent-scope:fable-xhigh` - plus `Explore`,
 which runs on haiku, and `Plan`, which runs on the main-loop model.
 `general-purpose`, an omitted type, and a tier name without its prefix
-are denied. A `Workflow` stage names one of the six tiers, prefix
+are denied. A `Workflow` stage names one of the seven tiers, prefix
 included, as a literal `agentType`; the gate denies an unpinned stage,
 any other type, and a `model` or `effort` option, which would outrank
 the pin.
@@ -33,6 +34,9 @@ model, by what the agent produces:
   one module; a check or a sweep with the pattern given.
 - `opus` judges: a review, a verdict on a claim, a cause across files,
   a synthesis.
+- `fable` derives what `opus` cannot hold: a derivation that cannot be
+  posed in parts, because the material must be held whole and any split
+  into Opus-sized briefs changes the question.
 
 Then the effort, by where the oracle lives - what the result is
 checked against. Name it in the brief. Haiku takes no effort level and
@@ -52,6 +56,9 @@ Sonnet stops at high:
   reproducer, the joint behavior of separately designed parts. A reader
   checks only by deriving it too. The launch names the kind in
   `derive:`; a task that is merely hard, large, or sensitive is `high`.
+  Both `agent-scope:opus-xhigh` and `agent-scope:fable-xhigh` sit here
+  and spend the same derive seats; take `opus-xhigh` unless the brief
+  fails to split.
 
 | Situation                                   | Action                                           |
 | ------------------------------------------- | ------------------------------------------------ |
