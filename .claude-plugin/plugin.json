@@ -1,7 +1,7 @@
 {
   "name": "agent-scope",
   "version": "0.2.1",
-  "description": "Six subagent tiers that pin model and effort, a PreToolUse gate that caps Opus fan-out per review round, and the directives that pick a tier",
+  "description": "Seven subagent tiers that pin model and effort, uncapped Sonnet and Haiku delegation, a PreToolUse gate that budgets Opus and Fable launches per round and shares derive seats between them, and the directives that pick a tier",
   "author": {
     "name": "bissli"
   },
