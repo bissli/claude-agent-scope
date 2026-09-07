@@ -6,11 +6,11 @@ stage is one launch.
 
 Three terms carry the accounting. A *capped tier* is
 `agent-scope:opus-medium`, `agent-scope:opus-high`,
-`agent-scope:opus-xhigh`, or `agent-scope:fable-xhigh`. A *deriving
-tier* is `agent-scope:opus-xhigh` or `agent-scope:fable-xhigh`. A
-*capped launch* is one on a capped tier, or on any type that runs on
-the main-loop model - `Plan` and a `fork` whatever `model` it names
-among them.
+`agent-scope:opus-xhigh`, `agent-scope:fable-high`, or
+`agent-scope:fable-xhigh`. A *deriving tier* is `agent-scope:opus-xhigh`
+or `agent-scope:fable-xhigh`. A *capped launch* is one on a capped
+tier, or on any type that runs on the main-loop model - `Plan` and a
+`fork` whatever `model` it names among them.
 
 Write the briefs first, then merge every pair one agent could hold in
 one read; what remains is the capped launch count. Overlap survives the
@@ -39,9 +39,10 @@ subject matter, importance, and the ultracode setting never raise the
 cap, and none of them is a derive. A derive seat needs `derive:` naming
 what the agent derives - `formula`, `bound`, `proof`, `equivalence`,
 `interleaving`, or `joint-behavior`; the one test: if an oracle outside
-the agent settles the principal claim, the brief is `opus-high`. Partial
-tests, numerical probes, and counterexamples stay useful as checks;
-their availability alone does not settle the principal claim.
+the agent settles the principal claim, the brief is `opus-high`, or
+`fable-high` where it fails to split. Partial tests, numerical probes,
+and counterexamples stay useful as checks; their availability alone
+does not settle the principal claim.
 
 A cycle is every marked agent launched for one user prompt; the next
 prompt starts a new cycle. The rounds are types, not a pipeline; a
