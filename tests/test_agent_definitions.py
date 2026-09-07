@@ -430,3 +430,29 @@ def test_hook_commands_resolve():
         assert (REPO_ROOT / relative).exists(), (
             f'command references missing file: {relative}')
 
+
+REFUSED_BODY_TEXT = (
+    'State the derivation, not only its conclusion. A reader checks this work '
+    'by deriving it too, so the steps are the deliverable.')
+
+
+@pytest.mark.parametrize('stem', sorted(DERIVING_TIERS))
+def test_a_deriving_body_asks_for_the_written_derivation(stem):
+    """Verify the body asks for a written derivation, not for the reasoning.
+
+    Mutation: restoring the sentence pair this release replaced, which
+        Fable 5.1's safeguards refused on two of three probe launches of
+        a tier carrying it, ending the launch with an API error before
+        the agent ran; the pair reads as a request for the model's own
+        reasoning rather than for a derivation as the work product.
+    Oracle: the refused pair is absent, and the body still asks for the
+        derivation, the assumptions, the counterexample search, the
+        cheaper checks, and the unsettled parts.
+    """
+    body = definition(stem).split('---\n', 2)[2]
+    assert REFUSED_BODY_TEXT not in body
+    assert 'the derivation itself' in body
+    assert 'Name every assumption' in body
+    assert 'counterexample' in body
+    assert 'cheaper checks' in body
+    assert 'unsettled' in body
