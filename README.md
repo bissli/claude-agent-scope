@@ -44,7 +44,7 @@ the Opus and Fable tiers resolve.
   `agent-scope:fable-xhigh`; their names and descriptions are 3.9KB of source
   text in the `Agent` tool listing every turn, source bytes rather than tokens
   or cost.
-- Two directive files, 3.9KB and 5.6KB of source text, print into context at
+- Two directive files, 3.9KB and 5.7KB of source text, print into context at
   session start and again after every compaction, clear, and resume.
 - An `Agent` or `Workflow` call that breaks a rule is blocked with a reason
   that names the fix:
@@ -115,8 +115,8 @@ A verdict on a claim is always Opus or Fable, regardless of the other answers.
 - `opus` judges: a review, a verdict on a claim, a cause across files,
   a synthesis.
 - `fable` holds what `opus` cannot: material that must be held whole,
-  because any split into briefs one Opus agent can hold changes the
-  question.
+  because any split into briefs one Opus agent can hold in one read
+  changes the question.
 
 **Effort - where the oracle lives:**
 
@@ -162,10 +162,8 @@ four modules with no check able to settle the claim, so that only an argument
 over every interleaving settles it, is `fable-xhigh` with `derive:
 interleaving`.
 
-`probes/routing_probe.py` is the check that this text carries the rule to a
-model: it hands both directives and the eight descriptions to a model with no
-other context, asks it to restate the split test, and scores its routing of
-eight labeled briefs against the intended tiers.
+The `probe` marker in `tests/test_routing_probe.py`, described under
+Development, checks that a model reading this text routes and sizes as it says.
 
 ## The review gate
 
@@ -313,7 +311,7 @@ is safe to delete.
 ```bash
 poetry install --with dev
 poetry run pytest tests
-poetry run python probes/routing_probe.py --model opus --model sonnet
+poetry run pytest tests -m probe -s
 claude --plugin-dir .
 claude plugin validate agents
 claude plugin validate .claude-plugin/plugin.json
@@ -326,13 +324,25 @@ strictly: both pass on a description that a YAML loader rejects. The
 real YAML, so `pytest` is the check that a strict loader still reads each
 definition's model and effort.
 
-`probes/routing_probe.py` reads the directives and descriptions as a model
-does: it hands them to a model with no other context, asks it to restate the
-split test in its own words and to route eight labeled briefs, prints the
-restatement and the sentences the model found unclear, and exits non-zero on a
-misrouted brief. Each model run is a paid call of about a quarter dollar and
-one to three minutes, so the probe sits outside `pytest` and runs by hand after
-a wording change.
+The `probe` marker in `tests/test_routing_probe.py` reads the directives and
+descriptions as a model does: it hands them to a model with no other context,
+asks it to restate the split test in its own words, to route twenty-four
+labeled briefs, and to size ten review rounds, then prints the restatement,
+the sentences the model found unclear, and a pass count per item. Each brief
+sits on one boundary the taxonomy draws and names the rule that decides it.
+`pytest.ini` deselects the marker, so `pytest tests` never pays for it, and
+`pytest tests -m probe -s` runs it. `AGENT_SCOPE_PROBE_MODELS` names the
+models (default `opus,sonnet`), `AGENT_SCOPE_PROBE_RUNS` the runs per model
+(default 3, since one run is one sample of a model's routing),
+`AGENT_SCOPE_PROBE_MIN_PASS` the runs an item must pass (default a majority),
+and `AGENT_SCOPE_PROBE_RAW` a directory for the raw replies. Each run is a paid
+call of under half a dollar; every model's runs launch together, so the wall
+time is one call's, about one to five minutes. `AGENT_SCOPE_PROBE_SHARDS`
+splits each run's items across that many parallel calls, which shortens the
+wall time by less than that factor, since every call still reads the full
+directives, and multiplies the input cost by it; the default of one call shows
+the model every item at once. The pure parse and
+score behind it run with the ordinary suite.
 
 `bump2version patch|minor|major` moves the version in `plugin.json` and tags
 the commit `v<version>`.
