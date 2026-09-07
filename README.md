@@ -135,6 +135,36 @@ The haiku tier ships with no effort level. The plugin offers Sonnet at medium
 and high, and Fable at high and xhigh, so a brief that fails to split runs at
 high even where it hands over the oracle and the items.
 
+### What "held whole" means
+
+The Fable tiers exist for one shape of brief. Some questions are answered by
+adding up answers about the parts: review these three files, and the review of
+the change is the three reviews together. Other questions live in how the parts
+interact: whether a reader can see stale data depends on the order in which a
+writer, a timeout, a cache, and an invalidation path run, so a reviewer who
+sees two of the four cannot answer it. Material of the second kind must be held
+whole.
+
+The test is to write the split. Divide the brief into pieces one Opus agent
+can each read, and write the step that combines their answers. Where the
+combined answers settle the original question, the brief splits, and Opus does
+it, several Opus agents if it is large. Where every division leaves the
+question open, because each piece's answer depends on what the other pieces
+do, the brief does not split, and one Fable agent holds it all. The directives
+call this "the brief fails to split".
+
+Size is not the test. A forty-file change whose files are independent splits
+by file or by review dimension and stays Opus work. A four-module interaction
+with a contract and a reproducer does not split and is `fable-high`. The same
+four modules with no check able to settle the claim, so that only an argument
+over every interleaving settles it, is `fable-xhigh` with `derive:
+interleaving`.
+
+`probes/routing_probe.py` is the check that this text carries the rule to a
+model: it hands both directives and the eight descriptions to a model with no
+other context, asks it to restate the split test, and scores its routing of
+eight labeled briefs against the intended tiers.
+
 ## The review gate
 
 `review-gate.py` runs as a PreToolUse hook on every `Agent` and `Workflow`
@@ -281,6 +311,7 @@ is safe to delete.
 ```bash
 poetry install --with dev
 poetry run pytest tests
+poetry run python probes/routing_probe.py --model opus --model sonnet
 claude --plugin-dir .
 claude plugin validate agents
 claude plugin validate .claude-plugin/plugin.json
@@ -292,6 +323,14 @@ strictly: both pass on a description that a YAML loader rejects. The
 `tests/test_agent_definitions.py` suite is what holds the frontmatter to
 real YAML, so `pytest` is the check that a strict loader still reads each
 definition's model and effort.
+
+`probes/routing_probe.py` reads the directives and descriptions as a model
+does: it hands them to a model with no other context, asks it to restate the
+split test in its own words and to route eight labeled briefs, prints the
+restatement and the sentences the model found unclear, and exits non-zero on a
+misrouted brief. Each model run is a paid call of about a quarter dollar and
+one to three minutes, so the probe sits outside `pytest` and runs by hand after
+a wording change.
 
 `bump2version patch|minor|major` moves the version in `plugin.json` and tags
 the commit `v<version>`.
