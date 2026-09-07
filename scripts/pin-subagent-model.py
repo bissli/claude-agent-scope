@@ -20,8 +20,11 @@ Notes
   named; nothing here encodes a version.
 - A full ``claude-opus-*`` id passes through untouched: it never collapses, so
   an explicit version request is honored as given.
-- Non-Opus aliases pass through untouched so an explicit ``fable``, ``haiku``,
-  or ``sonnet`` request is still granted.
+- Non-Opus aliases pass through untouched: this hook rewrites nothing for
+  ``haiku``, ``sonnet``, or ``fable``. Passing one through is not a grant.
+  ``review-gate.py`` decides the call after this hook runs, and it denies
+  ``fable`` on every type, since an invocation-level model outranks the
+  version pin in ``agents/fable-xhigh.md``.
 - ``Explore`` is pinned to ``haiku`` when the caller names no model, keeping
   grep-fanout work off the expensive main-loop model.
 """

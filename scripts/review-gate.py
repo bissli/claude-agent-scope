@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""PreToolUse gate on Agent and Workflow: cap Opus agents per round.
+"""PreToolUse gate on Agent and Workflow: cap Opus and Fable launches.
 
-An Opus Agent opens its prompt with a header. The gate reads that block
-and nothing else in the prompt:
+A capped Agent launch opens its prompt with a header. The gate reads
+that block and nothing else in the prompt:
 
     <review-gate>
     round: review|verify|synthesize|swarm
@@ -16,20 +16,23 @@ Notes
   agent-scope:opus-medium, agent-scope:opus-high, agent-scope:opus-xhigh,
   agent-scope:fable-xhigh, agent-scope:sonnet-medium,
   agent-scope:sonnet-high, or agent-scope:haiku, each an agent
-  definition that pins its model and effort. A launch on general-purpose or with no type would inherit the
-  session effort and is denied; so is a bare tier name, which names no
-  agent the plugin ships, and a prefixed name that is not a tier.
-- Only an Opus-tier agent takes a slot. An explicit haiku or sonnet
-  model, a sonnet or haiku tier, and an Explore agent that names no
-  model sit outside the caps. Any other named type with no model is
-  Opus-tier, and so is a fork whatever model it names: the runtime
+  definition that pins its model and effort. A launch on
+  general-purpose or with no type would inherit the session effort and
+  is denied; so is a bare tier name, which names no agent the plugin
+  ships, and a prefixed name that is not a tier.
+- Only a capped launch takes a slot: an Opus or Fable tier, or a type
+  that runs on the main-loop model. An explicit haiku or sonnet model,
+  a sonnet or haiku tier, and an Explore agent that names no model sit
+  outside the caps, in any quantity. Any other named type with no model
+  is capped, and so is a fork whatever model it names: the runtime
   ignores a fork's model and runs it on the main-loop model.
-- opus-cap is the Opus ceiling per round: 3, 6, or 9, one of three
-  values and not a free number. The first counted review, verify, or
-  swarm agent of a cycle fixes it; those three rounds then each hold
-  that many Opus agents. The synthesize round holds 2 per cycle at any
-  opus-cap; a synthesize agent never fixes the value, and one it
-  declares must match the fixed value.
+- opus-cap is the ceiling on capped launches per round: 3, 6, or 9, one
+  of three values and not a free number. The first counted review,
+  verify, or swarm agent of a cycle fixes it; those three rounds then
+  each hold that many capped launches. The synthesize round holds 2 per
+  cycle at any opus-cap; a synthesize agent never fixes the value, and
+  one it declares must match the fixed value. The counters are
+  cumulative: a launch that finishes, fails, or dies frees no slot.
 - A deriving agent, opus-xhigh or fable-xhigh, declares derive in every
   round, one of six kinds, naming what it must derive; a missing or
   unknown kind, or the field on any other tier, is denied before a slot
@@ -41,7 +44,7 @@ Notes
   agent is denied until a review, verify, or swarm agent has fixed the
   opus-cap, since the seat count reads off it and a synthesize agent
   cannot fix it. Refusals apply in the order mismatch, unfixed cycle,
-  Opus cap, derive seat.
+  round cap, derive seat.
 - A cycle is one user prompt. The key is the payload's prompt_id,
   unless the transcript shows that id stamped on a system record, a
   background task's completion re-entering the turn, in which case the
@@ -49,22 +52,23 @@ Notes
   key is that human record's promptId or uuid, else the uuid of the
   last user record from a CLI that stamps no origin. A launch whose
   cycle cannot be keyed is allowed and logged.
-- An Opus-tier launch with no header is denied. Work outside a review
-  declares round swarm, a fourth round counted and capped like review
-  on its own counter. A cheap launch may omit the header, and a fable
-  model option is always denied: agent-scope:fable-xhigh pins the
-  version in frontmatter, which a model option would outrank.
+- A capped launch with no header is denied. Capped work outside a
+  review declares round swarm, a fourth round counted and capped like
+  review on its own counter. A cheap launch may omit the header, and a
+  fable model option is always denied: an invocation-level model
+  outranks the version pin in agent-scope:fable-xhigh's frontmatter,
+  and the fable family alias is configurable and can change over time.
 - Silence lets the call continue; a JSON deny blocks it. An allowed
   deriving launch prints a JSON systemMessage naming the seat, the
   kind, and the label; the user sees it and the call continues.
 - A Workflow call is gated from its script text: every agent() stage is
   read as one Agent launch. The stage names its tier, prefix included
   and compared as written, as a literal agentType and carries no model
-  or effort option; an Opus stage opens its prompt with a literal
+  or effort option; a capped stage opens its prompt with a literal
   carrying the header, and sits where it runs once: the top level, a
   thunk in parallel([...]), or a .then(), .catch(), or .finally()
   continuation. A loop, a pipeline stage, a mapped callback, or any
-  other function around an Opus stage
+  other function around a capped stage
   is denied, as is a script that aliases or declares agent, binds
   parallel, defines then, calls workflow(), or names eval, Function,
   globalThis, constructor, import, or require. A saved workflow name is
@@ -347,7 +351,7 @@ def turn_key(hook_input: dict[str, Any]) -> str | None:
       record may not have reached the file yet, and the payload is then
       the only witness to the turn.
     - A system or meta record never opens a cycle on either path.
-    - The scan stops at the first human record, so an Opus launch pays
+    - The scan stops at the first human record, so a capped launch pays
       for the bytes since the current prompt; a cheap launch never
       reaches it.
     """
@@ -510,7 +514,7 @@ def split_type(agent_type: str) -> tuple[bool, str]:
 
 
 def is_uncapped(tool_input: dict[str, Any]) -> bool:
-    """Return whether the Agent runs below Opus.
+    """Return whether the Agent runs below the capped tiers.
 
     Parameters
     ----------
@@ -523,8 +527,9 @@ def is_uncapped(tool_input: dict[str, Any]) -> bool:
     bool
         True for an explicit haiku or sonnet model, for a sonnet or haiku
         tier under the plugin prefix, and for an Explore agent that names
-        no model. An Explore agent with any other model is counted, because
-        the pin hook strips an Opus alias and the launch then inherits the
+        no model; an uncapped launch is allowed in any quantity. An
+        Explore agent with any other model is counted, because the pin
+        hook strips an Opus alias and the launch then inherits the
         main-loop Opus model. A fork is counted whatever model it names:
         the runtime ignores a fork's model and runs it on the main-loop
         model. Type and model names compare lowercased.
@@ -548,10 +553,11 @@ class Reservation:
         Whether the launch took its slot.
     number : int
         The position this call would take on the counter that decided:
-        the cycle's xhigh seat on a 'seat' refusal, else its Opus slot.
+        the cycle's xhigh seat on a 'seat' refusal, else its capped
+        slot.
     cap : int
         That counter's maximum: the cycle's seat count on a 'seat'
-        refusal, else the round's Opus cap.
+        refusal, else the round's cap on capped launches.
     fixed : str or None
         The cycle's opus-cap after this call, the declared string whose
         int is cap; None while no review, verify, or swarm agent has
@@ -560,7 +566,8 @@ class Reservation:
         None when allowed, else the rule that refused: 'mismatch' (the
         declaration differs from fixed), 'unfixed' (a deriving
         synthesize agent before any opus-cap is fixed), 'cap' (the
-        round's Opus cap), or 'seat' (the cycle's xhigh seats).
+        round's cap on capped launches), or 'seat' (the cycle's xhigh
+        seats).
     seat : int or None
         On a deriving request against a fixed opus-cap, the seat this
         call took or would take; None otherwise.
@@ -581,7 +588,7 @@ def reserve_slots(
     session_id: str,
     turn: str,
     requests: list[tuple[str, str | None, bool]]) -> list[Reservation]:
-    """Atomically take Opus slots in review rounds, all or none.
+    """Atomically take capped slots in review rounds, all or none.
 
     Parameters
     ----------
@@ -616,12 +623,12 @@ def reserve_slots(
       match it. A deriving synthesize agent is refused while nothing
       is fixed, since it cannot fix the value itself.
     - The cycle holds XHIGH_SEATS[opus_cap] derive seats on one counter
-      across the four rounds, which the deriving tiers share. Refusals apply in the order
-      mismatch, unfixed, Opus cap, seat, so a seat refusal always names
-      a remedy with room.
+      across the four rounds, which the deriving tiers share. Refusals
+      apply in the order mismatch, unfixed, round cap, seat, so a seat
+      refusal always names a repair the round has room for.
     - An Agent launch is a batch of one. A Workflow script is a batch of
-      every marked Opus stage it holds, so a script that would overrun a
-      cap is refused whole and the corrected relaunch fits.
+      every marked capped stage it holds, so a script that would overrun
+      a cap is refused whole and the corrected relaunch fits.
     - The state keeps the last KEPT_CYCLES cycles of the session, so
       launches from two cycles may interleave without resetting either.
     - A counter that is not a non-negative int, or an opus-cap outside
@@ -731,42 +738,65 @@ def refusal_reason(slot: Reservation, round_name: str) -> str:
     Returns
     -------
     str
-        The reason, without the 'review-gate:' prefix, naming a remedy
-        with room.
+        The reason, without the 'review-gate:' prefix, naming a repair
+        that respects both the budget and the tier the brief needs.
+
+    Notes
+    -----
+    - A cap already fixed cannot be raised, so a remedy never sends the
+      caller back to declare a larger one for this cycle. Where the
+      value is not yet fixed, the remedy names the value that seats a
+      derivation, since the documented default of 3 seats none.
+    - opus-high is offered for a deriving brief only where an oracle
+      outside the agent can check it. Where none can, the remedy is to
+      merge the deriving briefs, and only while a seat remains to merge
+      into: a cycle at opus-cap 3 holds none, so there the derivation
+      waits for the next prompt. Dropping derive to reach an exhausted
+      allowance relabels the work rather than sizing it.
     """
     if slot.refusal == 'mismatch':
         return (
-            f'this cycle was declared opus-cap {slot.fixed}; every Opus agent that '
-            f'declares opus-cap must use {slot.fixed}. sonnet-high and haiku are '
-            'uncapped.')
+            f'this cycle was declared opus-cap {slot.fixed}; every capped launch '
+            f'that declares opus-cap must use {slot.fixed}. The sonnet and haiku '
+            'tiers are uncapped.')
     if slot.refusal == 'unfixed':
         return (
             'a deriving tier in the synthesize round needs a cycle whose opus-cap a '
             'review, verify, or swarm agent has fixed, since the seat count reads '
-            f'off it; use {TIER_PREFIX}opus-high.')
+            'off it. Launch that round first declaring opus-cap 6 or 9, since 3 '
+            'seats no derivation and a fixed cap does not rise; or, where an '
+            f'oracle outside the agent can check this brief, use {TIER_PREFIX}'
+            'opus-high.')
     if slot.refusal == 'seat' and slot.cap == 0:
         return (
-            f'a cycle at opus-cap {slot.fixed} holds no derive seat. A cycle with a '
-            'deriving brief declares opus-cap 6 or 9 from its first Opus agent; '
-            f'otherwise run this brief on {TIER_PREFIX}opus-high, which the '
-            f'{round_name} round still has room for.')
+            f'a cycle at opus-cap {slot.fixed} holds no derive seat, and no later '
+            'launch can raise a cap already fixed: a cycle carrying a deriving '
+            'brief declares opus-cap 6 or 9 from its first capped launch. In this '
+            f'cycle, use {TIER_PREFIX}opus-high where an oracle outside the agent '
+            'can check the brief; where none can, the derivation waits for the '
+            'next prompt, since every deriving launch of this cycle is refused '
+            'here.')
     if slot.refusal == 'seat':
         return (
             f'a cycle at opus-cap {slot.fixed} holds {slot.cap} derive '
             f'seat{"s" if slot.cap != 1 else ""}; this '
-            f'would be #{slot.number}. Run the other briefs on '
-            f'{TIER_PREFIX}opus-high, which the {round_name} round still has room '
-            'for.')
+            f'would be #{slot.number}. Use {TIER_PREFIX}opus-high for a brief an '
+            'oracle outside the agent can check; otherwise merge the deriving '
+            'briefs or hold one for the next prompt.')
     if round_name == 'synthesize':
         return (
-            f'the synthesize round holds at most {slot.cap} Opus agents per cycle; '
-            f'this would be #{slot.number}. One synthesizer is the norm; for more, '
-            f'use {TIER_PREFIX}sonnet-high, which is uncapped.')
+            f'the synthesize round holds at most {slot.cap} capped agents per '
+            f'cycle; this would be #{slot.number}. One synthesizer is the norm: '
+            f'merge the remaining synthesis into it. {TIER_PREFIX}sonnet-high is '
+            'uncapped for further coverage, and returns claims for that '
+            'synthesizer to judge, never a verdict.')
     return (
-        f'opus-cap {slot.fixed} allows at most {slot.cap} Opus agents in the '
-        f'{round_name} round; this would be #{slot.number}. The default is 3: merge '
-        f'overlapping Opus briefs, and take extra coverage from '
-        f'{TIER_PREFIX}sonnet-high or {TIER_PREFIX}haiku, which are uncapped.')
+        f'opus-cap {slot.fixed} allows at most {slot.cap} capped agents in the '
+        f'{round_name} round; this would be #{slot.number}. A fixed cap does not '
+        "rise, so merge overlapping briefs here and declare the cycle's whole "
+        'capped and deriving demand from its first launch next time; extra '
+        f'coverage takes {TIER_PREFIX}sonnet-high or {TIER_PREFIX}haiku, which are '
+        'uncapped.')
 
 
 def gate_agent(hook_input: dict[str, Any]) -> dict[str, Any] | None:
@@ -785,13 +815,13 @@ def gate_agent(hook_input: dict[str, Any]) -> dict[str, Any] | None:
     Notes
     -----
     - Order of checks: fable model, tier named under the prefix, header
-      syntax, header present on an Opus-tier launch, round present and
-      valid, opus-cap value, derive value and tier, uncapped tiers, derive
+      syntax, header present on a capped launch, round present and valid,
+      opus-cap value, derive value and tier, uncapped tiers, derive
       present on a deriving tier, opus-cap presence on review, verify, and
       swarm, cycle key, then the slot reservation.
-    - An allowed opus-xhigh launch returns a systemMessage envelope
-      with no permission decision: the call continues and the user
-      sees the seat, the kind, and the label.
+    - An allowed launch on either deriving tier returns a systemMessage
+      envelope with no permission decision: the call continues and the
+      user sees the seat, the kind, and the label.
     - Type names compare lowercased, as the model alias does; the log
       keeps the raw name.
     - Header syntax and field values are validated on every marked agent
@@ -814,10 +844,10 @@ def gate_agent(hook_input: dict[str, Any]) -> dict[str, Any] | None:
         }
     if model == 'fable':
         return deny(
-            f'review-gate: name {TIER_PREFIX}{FABLE_TIERS[0]} with no model '
-            'option. Its frontmatter pins the fable version, and a model option '
-            'outranks that pin, so the alias would resolve to whatever the '
-            'account defaults to.',
+            f'review-gate: launch {TIER_PREFIX}{FABLE_TIERS[0]} without a '
+            'model option. An invocation-level model overrides the '
+            "definition's version pin; the fable family alias is configurable "
+            'and can change over time.',
             event)
     if not scoped and tier_name in INHERITING_TYPES:
         return deny(
@@ -842,8 +872,8 @@ def gate_agent(hook_input: dict[str, Any]) -> dict[str, Any] | None:
             allow({**event, 'scope': 'not-review-marked'})
             return None
         return deny(
-            'review-gate: an Opus agent opens its prompt with a <review-gate> '
-            'header; work outside a review declares round: swarm and an '
+            'review-gate: a capped launch opens its prompt with a <review-gate> '
+            'header; capped work outside a review declares round: swarm and an '
             'opus-cap.',
             event)
 
@@ -886,8 +916,8 @@ def gate_agent(hook_input: dict[str, Any]) -> dict[str, Any] | None:
             {**event, 'opus_cap': opus_cap})
     if round_name in OPUS_CAP_ROUNDS and opus_cap is None:
         return deny(
-            'review-gate: Opus review, verify, and swarm agents require opus-cap: '
-            '3, 6, or 9 in the leading header.',
+            'review-gate: capped review, verify, and swarm agents require '
+            'opus-cap: 3, 6, or 9 in the leading header.',
             event)
 
     if takes_seat:
@@ -1641,23 +1671,25 @@ def gate_workflow(hook_input: dict[str, Any]) -> dict[str, Any] | None:
       inside each .claude/workflows/*.js file, so the gate cannot tell
       which script runs. A script that cannot be read is denied.
     - Every agent() stage is checked in source order with the rules of
-      gate_agent: tier named, header syntax, header present on an Opus
-      stage, round, opus-cap, and derive values, derive on opus-xhigh
-      alone, opus-cap presence on Opus review, verify, and swarm. Four
-      rules are Workflow's own: agentType names one of the six prefixed
-      tiers and nothing else, so Explore, Plan, and fork deny here and
-      pass on Agent; it compares as written, prefix and case included,
-      where gate_agent lowercases; an Opus stage must run at most once;
-      and it must open its prompt with a literal whose text before the
-      first substitution is the header. The first failing stage denies
-      the call.
-    - The marked Opus stages then reserve their slots in one batch on
+      gate_agent: tier named, header syntax, header present on a capped
+      stage, round, opus-cap, and derive values, derive on a deriving
+      tier alone, opus-cap presence on a capped review, verify, or swarm
+      stage. Four rules are Workflow's own: agentType names one of the
+      seven prefixed tiers and nothing else, so Explore, Plan, and fork
+      deny here and pass on Agent; it compares as written, prefix and
+      case included, where gate_agent lowercases; a capped stage must run
+      at most once; and it must open its prompt with a literal whose text
+      before the first substitution is the header. The first failing
+      stage denies the call.
+    - The marked capped stages then reserve their slots in one batch on
       the same cycle counters Agent launches use; a refusal denies the
-      call and moves no counter. A cheap stage never takes a slot.
+      call and moves no counter. A cheap stage never takes a slot, in any
+      quantity.
     - One log line per stage; a script with no stage logs one line with
       scope no-stages.
-    - An allowed script with opus-xhigh stages returns a systemMessage
-      envelope, one line per stage, as an Agent launch does.
+    - An allowed script with a stage on either deriving tier returns a
+      systemMessage envelope, one line per stage, as an Agent launch
+      does.
     """
     tool_input = hook_input.get('tool_input') or {}
     if not isinstance(tool_input, dict):
@@ -1740,15 +1772,15 @@ def gate_workflow(hook_input: dict[str, Any]) -> dict[str, Any] | None:
         is_capped = tier in CAPPED_TIERS
         if is_capped and stage.multiplied:
             return deny(
-                f'review-gate: {where}: an Opus stage inside {stage.multiplied} '
-                'may run more than once. Write each Opus stage as one agent() call '
-                'at the top level, a thunk in parallel([...]), or a .then(), '
+                f'review-gate: {where}: a capped stage inside {stage.multiplied} '
+                'may run more than once. Write each capped stage as one agent() '
+                'call at the top level, a thunk in parallel([...]), or a .then(), '
                 '.catch(), or .finally() continuation; fan-out runs on '
                 f'{TIER_PREFIX}sonnet-high or {TIER_PREFIX}haiku.',
                 site)
         if is_capped and stage.prefix is None:
             return deny(
-                f'review-gate: {where}: an Opus stage opens its prompt with a '
+                f'review-gate: {where}: a capped stage opens its prompt with a '
                 'string or template literal so the gate can read its review-gate '
                 'header; a variable, a concatenation, or a helper call hides it. '
                 'Write the header as the first text of the literal, then ${...} '
@@ -1756,7 +1788,7 @@ def gate_workflow(hook_input: dict[str, Any]) -> dict[str, Any] | None:
                 site)
         if is_capped and stage.prefix == '':
             return deny(
-                f'review-gate: {where}: an Opus stage opens its prompt literal '
+                f'review-gate: {where}: a capped stage opens its prompt literal '
                 'with the review-gate header itself; a leading ${...} hides it, '
                 'since only the text before the first substitution is read. Write '
                 'the header text first, then the substitution.',
@@ -1769,9 +1801,9 @@ def gate_workflow(hook_input: dict[str, Any]) -> dict[str, Any] | None:
         if header is None:
             if is_capped:
                 return deny(
-                    f'review-gate: {where}: an Opus stage opens its prompt with a '
-                    '<review-gate> header; work outside a review declares round: '
-                    'swarm and an opus-cap.',
+                    f'review-gate: {where}: a capped stage opens its prompt with '
+                    'a <review-gate> header; capped work outside a review declares '
+                    'round: swarm and an opus-cap.',
                     site)
             site_events.append({**site, 'scope': 'not-review-marked'})
             continue
@@ -1815,8 +1847,8 @@ def gate_workflow(hook_input: dict[str, Any]) -> dict[str, Any] | None:
                 {**site, 'opus_cap': opus_cap})
         if round_name in OPUS_CAP_ROUNDS and opus_cap is None:
             return deny(
-                f'review-gate: {where}: Opus review, verify, and swarm stages require '
-                'opus-cap: 3, 6, or 9 in the leading header.',
+                f'review-gate: {where}: capped review, verify, and swarm stages '
+                'require opus-cap: 3, 6, or 9 in the leading header.',
                 site)
         site['opus_cap'] = opus_cap
         if takes_seat:

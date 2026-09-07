@@ -211,8 +211,8 @@ def test_prefixed_typo_tier_in_workflow_is_denied(gate):
 
     Mutation: dropping the prefixed-non-tier check in the Workflow path
         so agent-scope:sonnet-hgih passes as a valid tier.
-    Oracle: agentType 'agent-scope:sonnet-hgih' is denied naming the six
-        valid tiers; no state is written.
+    Oracle: agentType 'agent-scope:sonnet-hgih' is denied naming the
+        seven valid tiers; no state is written.
     """
     out = run(gate, 'await ' + stage("'hi'", 'agent-scope:sonnet-hgih'))
     assert decision(out) == 'deny'
@@ -435,7 +435,7 @@ def test_swarm_stages_have_their_own_counter(gate):
     four = thunks(*[stage(marked('swarm')) for _ in range(4)])
     out = run(gate, four, prompt_id='turn-2')
     assert decision(out) == 'deny'
-    assert 'at most 3 Opus agents in the swarm round' in reason(out)
+    assert 'at most 3 capped agents in the swarm round' in reason(out)
     assert cycle_state(gate, 'turn-2') == EMPTY_CYCLE
 
 
@@ -773,7 +773,7 @@ def test_synthesize_cap_holds_in_a_script(gate):
     calls = [stage(marked('synthesize', None, str(i))) for i in range(3)]
     out = run(gate, thunks(*calls))
     assert decision(out) == 'deny'
-    assert 'at most 2 Opus agents per cycle; this would be #3' in reason(out)
+    assert 'at most 2 capped agents per cycle; this would be #3' in reason(out)
 
 
 def test_unresolved_cycle_key_allows_and_logs(gate):
@@ -1092,3 +1092,103 @@ def test_two_deriving_stages_of_different_tiers_fit_at_opus_cap_9(gate):
     lines = out['systemMessage'].split('\n')
     assert any('opus-xhigh seat 1/2' in line for line in lines)
     assert any('fable-xhigh seat 2/2' in line for line in lines)
+
+
+# --- Capped stages across the tiers and across tools ---
+
+
+CAPPED_STAGE_TIERS = (
+    'agent-scope:opus-medium',
+    'agent-scope:opus-high',
+    'agent-scope:opus-xhigh',
+    'agent-scope:fable-xhigh',
+    )
+DERIVING_STAGE_ORDERS = [
+    ('agent-scope:opus-xhigh', 'agent-scope:fable-xhigh'),
+    ('agent-scope:fable-xhigh', 'agent-scope:opus-xhigh'),
+    ]
+
+
+@pytest.mark.parametrize('tier', CAPPED_STAGE_TIERS)
+def test_every_capped_tier_is_held_to_the_stage_rules(gate, tier):
+    """Verify the countable-position and literal-header rules cover all four.
+
+    Mutation: testing either rule against the Opus tiers alone, so a
+        fable-xhigh stage inside a mapped callback, or one whose prompt
+        is built at runtime, runs unread and uncounted.
+    Oracle: a stage inside a pipeline callback is denied for running
+        more than once, a stage with a variable prompt is denied for
+        hiding the header, and neither writes state.
+    """
+    mapped = 'await pipeline(args, d => ' + stage(marked(), tier) + ')'
+    out = run(gate, mapped)
+    assert decision(out) == 'deny'
+    assert 'may run more than once' in reason(out)
+    assert cycle_state(gate) is None
+    out = run(gate, 'await ' + stage('args.prompt', tier))
+    assert decision(out) == 'deny'
+    assert 'opens its prompt with a string or template literal' in reason(out)
+    assert cycle_state(gate) is None
+
+
+@pytest.mark.parametrize(('first', 'second'), DERIVING_STAGE_ORDERS)
+def test_derive_seats_are_shared_across_agent_and_workflow(gate, first, second):
+    """Verify an Agent launch and a Workflow stage draw on one seat counter.
+
+    Mutation: keeping a seat counter per tool, so a cycle at opus-cap 6
+        seats one deriving Agent launch and one deriving stage.
+    Oracle: the Agent launch takes the only seat; the script is then
+        refused as derive seat #2 and leaves its round counter at 0.
+    """
+    launch = agent_input(header('review', '6', 'proof'), subagent_type=first)
+    assert decision(gate.gate_agent(launch)) is None
+    out = run(gate, 'await ' + stage(marked('verify', '6', derive='bound'), second))
+    assert decision(out) == 'deny'
+    assert 'holds 1 derive seat; this would be #2' in reason(out)
+    assert cycle_state(gate)['xhigh'] == 1
+    assert cycle_state(gate)['verify'] == 0
+
+
+def test_a_mixed_batch_refused_on_the_seat_moves_no_counter(gate):
+    """Verify a batch whose last stage overruns the seat commits nothing.
+
+    Mutation: committing each stage's reservation as it is decided, so
+        the cheap stage's log line and the two fitting capped stages
+        persist while the batch is refused.
+    Oracle: a haiku stage, an opus-high stage, and a seated opus-xhigh
+        stage followed by a fable-xhigh stage at opus-cap 6 are refused
+        whole as derive seat #2, leaving an empty cycle.
+    """
+    calls = [
+        stage("'sweep the files'", 'agent-scope:haiku'),
+        stage(marked(opus_cap='6'), 'agent-scope:opus-high'),
+        stage(
+            marked(opus_cap='6', tail='B', derive='proof'),
+            'agent-scope:opus-xhigh'),
+        stage(
+            marked(opus_cap='6', tail='C', derive='bound'),
+            'agent-scope:fable-xhigh'),
+        ]
+    out = run(gate, thunks(*calls))
+    assert decision(out) == 'deny'
+    assert 'holds 1 derive seat; this would be #2' in reason(out)
+    assert cycle_state(gate) == EMPTY_CYCLE
+
+
+def test_cheap_stages_are_outside_the_capped_quantity_rules(gate):
+    """Verify repeated and mapped cheap stages pass beyond every threshold.
+
+    Mutation: applying the round caps to cheap stages, or counting a
+        mapped cheap stage once per tier rather than not at all; twelve
+        marked cheap stages here would trip either.
+    Oracle: a mapped sonnet stage plus twelve marked haiku stages in one
+        script are allowed and write no state.
+    """
+    sweep = 'const rs = await pipeline(args, d => ' + stage(
+        'd.prompt', 'agent-scope:sonnet-medium') + ')\n'
+    calls = [
+        stage(marked(gate.ROUNDS[i % 4], None, tail=str(i)), 'agent-scope:haiku')
+        for i in range(12)
+        ]
+    assert run(gate, sweep + thunks(*calls)) is None
+    assert cycle_state(gate) is None
