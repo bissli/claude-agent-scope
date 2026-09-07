@@ -4,14 +4,6 @@ The main loop runs the model named in `settings.json` and re-reads the
 whole conversation at that price every turn. Delegate grunt work and
 keep throwaway output (file dumps, logs) out of the main context.
 
-**A `fable` model reaches a delegated agent only as
-`agent-scope:fable-high` or `agent-scope:fable-xhigh` named with no
-`model` option**: the definition's frontmatter pins the version, an
-invocation-level `model` outranks that pin, and the `fable` family alias
-is configurable and can change over time. `review-gate.py` denies a
-`fable` model option on every type, and denies any `model` or `effort`
-option on a `Workflow` stage.
-
 Every `Agent` launch names its type and omits `model`. The types are
 the eight tiers the `agent-scope` plugin ships, agent definitions that
 pin model and effort, named with the plugin prefix:
@@ -24,7 +16,9 @@ which runs on haiku, and `Plan`, which runs on the main-loop model.
 are denied. A `Workflow` stage names one of the eight tiers, prefix
 included, as a literal `agentType`; the gate denies an unpinned stage,
 any other type, and a `model` or `effort` option, which would outrank
-the pin.
+the pin. A `fable` model option would outrank the Fable tiers' version
+pin the same way, and the alias can change over time, so the gate denies
+it on every type.
 
 Two questions pick the tier. Take the lowest answer to each that fits,
 with one override: a verdict on a claim is always Opus or Fable. First
@@ -43,7 +37,8 @@ the model, by what the agent produces:
 Then the effort, by where the oracle lives - what the result is
 checked against. Name it in the brief. The haiku tier ships with no
 effort level. The plugin offers Sonnet at medium and high, and Fable at
-high and xhigh:
+high and xhigh, so a brief that fails to split runs at high even where
+it hands over the oracle and the items:
 
 - `medium`: the brief names the oracle and the items - these claims at
   these lines, these files against this pattern - and the agent adds

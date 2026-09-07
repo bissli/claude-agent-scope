@@ -44,7 +44,7 @@ the Opus and Fable tiers resolve.
   `agent-scope:fable-xhigh`; their names and descriptions are 4.8KB of source
   text in the `Agent` tool listing every turn, source bytes rather than tokens
   or cost.
-- Two directive files, 4.2KB and 5.9KB of source text, print into context at
+- Two directive files, 4.0KB and 5.9KB of source text, print into context at
   session start and again after every compaction, clear, and resume.
 - An `Agent` or `Workflow` call that breaks a rule is blocked with a reason
   that names the fix:
@@ -104,8 +104,7 @@ deriving tiers share. Sonnet and Haiku launches spend neither, in any quantity.
 ## Choosing a tier
 
 Two questions select the tier. Take the lowest answer to each that fits.
-A verdict on a claim is always Opus or Fable, regardless of the other
-answers.
+A verdict on a claim is always Opus or Fable, regardless of the other answers.
 
 **Model - what the agent produces:**
 
@@ -133,7 +132,8 @@ answers.
   settle the claim. A task that is merely hard, large, or sensitive is `high`.
 
 The haiku tier ships with no effort level. The plugin offers Sonnet at medium
-and high, and Fable at high and xhigh.
+and high, and Fable at high and xhigh, so a brief that fails to split runs at
+high even where it hands over the oracle and the items.
 
 ## The review gate
 
@@ -181,18 +181,18 @@ review-gate: the tiers are the agent-scope plugin's agents; name agent-scope:hai
 ```
 
 The gate also denies a `fable` model option on any type, the two Fable
-tiers included: an invocation-level model overrides the
-definition's version pin, and the `fable` family alias is configurable and can
-change over time. It denies `general-purpose`, an omitted type, a prefixed
-name that is not one of the eight tiers, a capped launch with no header, and a
-Workflow stage that carries a `model` or `effort` option beside its
-`agentType`. `Plan` and a `fork` run on the main-loop model, so the gate
-counts them as capped launches and requires the header; `Explore` with no
-`model` is uncapped. An explicit `sonnet` or `haiku` model keeps a launch
-uncapped, the Fable tiers included, and runs that definition on the
-cheap model, since the pin hook rewrites neither alias and a `model` option
-outranks the frontmatter pin; a `fork` is the exception and stays counted
-whatever `model` it names. A launch names its tier and omits `model`.
+tiers included: an invocation-level model overrides the definitions' version
+pins, and the `fable` family alias is configurable and can change over time.
+It denies `general-purpose`, an omitted type, a prefixed name that is not one
+of the eight tiers, a capped launch with no header, and a Workflow stage that
+carries a `model` or `effort` option beside its `agentType`. `Plan` and a
+`fork` run on the main-loop model, so the gate counts them as capped launches
+and requires the header; `Explore` with no `model` is uncapped. An explicit
+`sonnet` or `haiku` model keeps a launch uncapped, the Fable tiers included,
+and runs that definition on the cheap model, since the pin hook rewrites
+neither alias and a `model` option outranks the frontmatter pin; a `fork` is
+the exception and stays counted whatever `model` it names. A launch names its
+tier and omits `model`.
 
 In a `Workflow` script a capped stage is one `agent()` call at the top level,
 a thunk in `parallel([...])`, or a `.then()`, `.catch()`, or `.finally()`
