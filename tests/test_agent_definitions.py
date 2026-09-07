@@ -467,12 +467,27 @@ def test_the_fable_high_body_asks_for_the_check_not_a_derivation():
     Mutation: copying agents/fable-xhigh.md to fable-high.md and editing
         the frontmatter alone, which asks a high-effort agent with an
         oracle in hand to report a derivation instead of the check.
-    Oracle: the body names the oracle and the check, asks for neither
-        the derivation itself nor the refused pair, and pins the tier's
-        model and effort in the frontmatter.
+    Oracle: the body names the oracle and the check, and asks for
+        neither the derivation itself nor the refused pair.
     """
     body = definition('fable-high').split('---\n', 2)[2]
     assert 'oracle' in body
     assert 'check' in body
     assert 'the derivation itself' not in body
     assert REFUSED_BODY_TEXT not in body
+
+
+def test_the_opus_medium_body_stays_bounded():
+    """Verify opus-medium's body is a verifier's, not the broad-search body.
+
+    Mutation: regenerating agents/opus-medium.md from the shared
+        search-agent template, which tells a tier handed its claims and
+        lines to search broadly and check multiple locations.
+    Oracle: the body names the supplied claims and forbids widening into
+        an audit, and carries neither 'search broadly' nor 'Be thorough'.
+    """
+    body = definition('opus-medium').split('---\n', 2)[2]
+    assert 'supplied claims' in body
+    assert 'general audit' in body
+    assert 'search broadly' not in body
+    assert 'Be thorough' not in body
