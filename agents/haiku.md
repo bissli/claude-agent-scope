@@ -1,6 +1,9 @@
 ---
 name: haiku
-description: Haiku, which has no effort level. Use for searches, grep fan-out, classification, and throwaway output such as file dumps and logs. Never takes an Opus slot under the review gate.
+description: >-
+  Haiku, which has no effort level. Use for searches, grep fan-out,
+  classification, and throwaway output such as file dumps and logs. The
+  tier is uncapped under the review gate, in any quantity.
 model: haiku
 ---
 

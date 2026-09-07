@@ -1,6 +1,13 @@
 ---
 name: opus-medium
-description: Opus at medium effort: the prompt hands over everything and the agent executes and reports. The tier for a verify agent handed enumerated claims and the lines to test them against, since no model below Opus may set a verdict; also mechanical Opus checks where Sonnet is not enough. Counts as an Opus reviewer under the review gate. Every launch opens its prompt with a review-gate header; work outside a review declares round: swarm.
+description: >-
+  Opus at medium effort. The prompt hands over everything and the agent
+  executes and reports. The tier for a verify agent handed enumerated
+  claims and the lines to test them against, since no model below Opus may
+  set a verdict; also mechanical Opus checks where Sonnet is not enough.
+  Counts as a capped launch under the review gate. Every launch opens its
+  prompt with a review-gate header and declares opus-cap in the review,
+  verify, and swarm rounds; work outside a review declares round: swarm.
 model: claude-opus-5
 effort: medium
 ---

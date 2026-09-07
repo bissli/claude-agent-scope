@@ -1,6 +1,23 @@
 ---
 name: opus-xhigh
-description: Opus at xhigh effort. Only for exceptional reasoning difficulty, where the agent must derive the answer and correctness is not visible from reading the result: deeply mathematical or numerical code, hard algorithms or proofs, separately designed subsystems whose joint behavior no single reading shows. A marked opus-xhigh agent declares derive: formula, bound, proof, equivalence, interleaving, or joint-behavior in every round, naming what it must derive; the review gate denies a launch with no kind, denies the field on any other tier, seats none per cycle at opus-cap 3, one at 6, two at 9, and counts the agent as an Opus reviewer. Importance, file count, security subject matter, and the ultracode setting are not derives: where an oracle outside the agent checks the result - a spec, a schema, a test run, the callers - the brief is opus-high. Every launch opens its prompt with a review-gate header; work outside a review declares round: swarm.
+description: >-
+  Opus at xhigh effort. Use only where no oracle outside the agent settles
+  the principal claim, so the agent must derive it: a formula or bound, a
+  proof of an invariant, an equivalence no test distinguishes, an
+  interleaving with no reproducer, the joint behavior of separately
+  designed subsystems. Partial tests, numerical probes, and counterexamples
+  stay useful as checks; their availability alone does not settle the
+  principal claim. Where an oracle outside the agent does settle it - a
+  spec, a schema, a test run, the callers - the brief is opus-high, however
+  large, important, or security-sensitive its subject and whatever the
+  ultracode setting. Consumes a capped launch and a derive seat shared with
+  fable-xhigh: the cycle's opus-cap seats none at 3, one at 6, two at 9, so
+  one deriving brief declares 6 and two declare 9 from the cycle's first
+  capped review, verify, or swarm launch, and no later launch can change a
+  fixed cap. Supply a review-gate header and derive: <kind> in every round,
+  synthesize included, naming one of formula, bound, proof, equivalence,
+  interleaving, or joint-behavior; use round: swarm outside review work.
+  Omit the model option when launching this tier.
 model: claude-opus-5
 effort: xhigh
 ---

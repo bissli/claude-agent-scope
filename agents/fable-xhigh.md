@@ -1,6 +1,21 @@
 ---
 name: fable-xhigh
-description: Fable at xhigh effort, the rung above opus-xhigh. Only for a derivation that cannot be posed in parts - the material must be held whole, and any split into Opus-sized briefs changes the question. A marked fable-xhigh agent declares derive: formula, bound, proof, equivalence, interleaving, or joint-behavior in every round, exactly as opus-xhigh does, and takes one of the cycle's derive seats, which the two tiers share: none per cycle at opus-cap 3, one at 6, two at 9. A cycle carrying one deriving brief for each tier holds two deriving briefs, so it declares opus-cap 9 and seats both. The gate counts the agent against the round's cap alongside the Opus tiers. Where the brief splits without changing the question, use opus-xhigh; where an oracle outside the agent checks the result - a spec, a schema, a test run, the callers - use opus-high. Importance, file count, subject matter, and the ultracode setting are not reasons to reach this rung. Every launch opens its prompt with a review-gate header; work outside a review declares round: swarm.
+description: >-
+  Fable at xhigh effort, the rung above opus-xhigh. Use only for a
+  derivation that must be held whole: any split into Opus-sized briefs
+  changes the question. Where the brief splits without changing the
+  question, use opus-xhigh; where an oracle outside the agent settles the
+  principal claim - a spec, a schema, a test run, the callers - use
+  opus-high. Importance, file count, subject matter, and the ultracode
+  setting are not reasons to reach this rung. Consumes a capped launch and
+  a derive seat shared with opus-xhigh: the cycle's opus-cap seats none at
+  3, one at 6, two at 9, so one deriving brief declares 6 and two declare
+  9 from the cycle's first capped review, verify, or swarm launch, and no
+  later launch can change a fixed cap. Supply a review-gate header and
+  derive: <kind> in every round, synthesize included, naming one of
+  formula, bound, proof, equivalence, interleaving, or joint-behavior; use
+  round: swarm outside review work. Omit the model option when launching
+  this tier.
 model: claude-fable-5-1
 effort: xhigh
 ---

@@ -1,6 +1,14 @@
 ---
 name: opus-high
-description: Opus at high effort: the agent weighs evidence across files or claims, or finds what is not written. The default Opus tier for review, verification, multi-file debugging, and synthesis. Three per round is the default cap; the review gate counts it as an Opus reviewer. A brief whose result something outside the agent checks belongs here, however large or sensitive its subject. Every launch opens its prompt with a review-gate header; work outside a review declares round: swarm.
+description: >-
+  Opus at high effort: the agent weighs evidence across files or claims,
+  or finds what is not written. The default Opus tier for review,
+  verification, multi-file debugging, and synthesis. Three per round is
+  the default cap; the review gate counts the launch against it. A brief
+  whose principal claim an oracle outside the agent settles belongs here,
+  however large or sensitive its subject. Every launch opens its prompt
+  with a review-gate header and declares opus-cap in the review, verify,
+  and swarm rounds; work outside a review declares round: swarm.
 model: claude-opus-5
 effort: high
 ---

@@ -1,6 +1,11 @@
 ---
 name: sonnet-medium
-description: Sonnet at medium effort: the prompt hands over the text, the check, or the edit pattern and the agent executes and reports. Use for checklist sweeps, scripted checks, bulk edits with the pattern given, extraction, and log or diff summarizing. Never takes an Opus slot under the review gate.
+description: >-
+  Sonnet at medium effort. The prompt hands over the text, the check, or
+  the edit pattern and the agent executes and reports. Use for checklist
+  sweeps, scripted checks, bulk edits with the pattern given, extraction,
+  and log or diff summarizing. The tier is uncapped under the review gate,
+  in any quantity.
 model: sonnet
 effort: medium
 ---
