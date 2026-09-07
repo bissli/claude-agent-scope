@@ -41,16 +41,16 @@ the Opus and Fable tiers resolve.
 ## What changes in a session
 
 - Eight subagent types appear, `agent-scope:haiku` through
-  `agent-scope:fable-xhigh`; their names and descriptions are 4.8KB of source
+  `agent-scope:fable-xhigh`; their names and descriptions are 3.9KB of source
   text in the `Agent` tool listing every turn, source bytes rather than tokens
   or cost.
-- Two directive files, 4.0KB and 5.9KB of source text, print into context at
+- Two directive files, 3.9KB and 5.6KB of source text, print into context at
   session start and again after every compaction, clear, and resume.
 - An `Agent` or `Workflow` call that breaks a rule is blocked with a reason
   that names the fix:
 
 ```
-review-gate: the tiers are the agent-scope plugin's agents; name agent-scope:haiku, not haiku.
+review-gate: name agent-scope:haiku, not haiku; the tiers are the agent-scope plugin's agents.
 ```
 
 ## The problem
@@ -93,8 +93,8 @@ those are set.
 | `agent-scope:opus-medium`   | claude-opus-5    | medium | capped launch        | Verify with handed claims and lines; mechanical Opus checks                         |
 | `agent-scope:opus-high`     | claude-opus-5    | high   | capped launch        | Review, multi-file debugging, synthesis; the default Opus tier                      |
 | `agent-scope:opus-xhigh`    | claude-opus-5    | xhigh  | capped launch + seat | Derivation tasks; `derive:` required in header                                      |
-| `agent-scope:fable-high`    | claude-fable-5-1 | high   | capped launch        | Review, verdict, or synthesis on material that will not split; no `derive:`         |
-| `agent-scope:fable-xhigh`   | claude-fable-5-1 | xhigh  | capped launch + seat | A derivation that will not split; `derive:` required in header                      |
+| `agent-scope:fable-high`    | claude-fable-5-1 | high   | capped launch        | Review, verdict, or synthesis on material that fails to split; no `derive:`         |
+| `agent-scope:fable-xhigh`   | claude-fable-5-1 | xhigh  | capped launch + seat | A derivation that fails to split; `derive:` required in header                      |
 
 A *capped tier* is one of the three Opus definitions or the two Fable ones; a
 *deriving tier* is `opus-xhigh` or `fable-xhigh`. A launch on a deriving tier
@@ -115,7 +115,8 @@ A verdict on a claim is always Opus or Fable, regardless of the other answers.
 - `opus` judges: a review, a verdict on a claim, a cause across files,
   a synthesis.
 - `fable` holds what `opus` cannot: material that must be held whole,
-  because any split into Opus-sized briefs changes the question.
+  because any split into briefs one Opus agent can hold changes the
+  question.
 
 **Effort - where the oracle lives:**
 
@@ -132,8 +133,9 @@ A verdict on a claim is always Opus or Fable, regardless of the other answers.
   settle the claim. A task that is merely hard, large, or sensitive is `high`.
 
 The haiku tier ships with no effort level. The plugin offers Sonnet at medium
-and high, and Fable at high and xhigh, so a brief that fails to split runs at
-high even where it hands over the oracle and the items.
+and high, Opus at medium, high, and xhigh, and Fable at high and xhigh. Fable
+has no medium rung, so a brief that fails to split is `fable-high` even where
+it names the oracle and the items.
 
 ### What "held whole" means
 
@@ -207,7 +209,7 @@ A denial blocks the call, takes no slot, and names the fix. A launch on
 the bare name `haiku` gets:
 
 ```
-review-gate: the tiers are the agent-scope plugin's agents; name agent-scope:haiku, not haiku.
+review-gate: name agent-scope:haiku, not haiku; the tiers are the agent-scope plugin's agents.
 ```
 
 The gate also denies a `fable` model option on any type, the two Fable
