@@ -47,16 +47,17 @@ hands it the claims and the lines, `agent-scope:opus-high` when it must
 build its own test. A `verify` round that needs more than the cap merges
 claims or moves the overflow to `agent-scope:sonnet-high`. `synthesize`
 is one capped launch after the other rounds report, and a cycle holds at
-most two. Coverage past that goes to `agent-scope:sonnet-high`, which
-returns claims for that synthesizer to judge.
+most two such launches. Coverage past that goes to
+`agent-scope:sonnet-high`, which returns claims for that synthesizer to
+judge.
 
 Every capped launch, and every review, verify, or synthesize agent on
 any tier, opens its prompt with this header, one field per line. Capped
 work outside a review declares `round: swarm`, a fourth round counted
 and capped like `review` on its own counter. `opus-cap` goes on every
 capped `review`, `verify`, or `swarm` launch and carries the cycle's one
-value. `derive` goes on a deriving tier alone, in every round,
-`synthesize` included:
+value. A `synthesize` launch may omit it and never fixes it. `derive`
+goes on a deriving tier alone, in every round, `synthesize` included:
 
     <review-gate>
     round: review|verify|synthesize|swarm

@@ -33,8 +33,8 @@ produces:
 - `opus` judges: a review, a verdict on a claim, a cause across files,
   a synthesis.
 - `fable` holds what `opus` cannot: material that must be held whole,
-  because any split into briefs one Opus agent can hold changes the
-  question.
+  because any split into briefs one Opus agent can hold in one read
+  changes the question.
 
 Then the effort, by where the oracle lives - what the result is
 checked against. Name it in the brief. The haiku tier ships with no

@@ -2,8 +2,8 @@
 name: fable-xhigh
 description: >-
   Fable at xhigh effort. Use only for a derivation that must be held
-  whole: any split into briefs one Opus agent can hold changes the
-  question. Where the brief splits, use opus-xhigh. Where an oracle
+  whole: any split into briefs one Opus agent can hold in one read changes
+  the question. Where the brief splits, use opus-xhigh. Where an oracle
   outside the agent settles the principal claim, use fable-high.
   Importance, file count, subject matter, and the ultracode setting are
   not reasons to reach this rung. Consumes a capped launch and a derive

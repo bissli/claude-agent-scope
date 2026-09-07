@@ -4,13 +4,13 @@ description: >-
   Fable at high effort: the agent weighs evidence against an oracle
   outside it - a spec, a schema, a test run, the callers - across material
   that must be held whole, where any split into briefs one Opus agent can
-  hold changes the question. Where the brief splits, use opus-high. Where
-  no oracle outside the agent settles the principal claim, use
-  fable-xhigh. Importance, file count, subject matter, and the ultracode
-  setting are not reasons to reach this rung. Counts as a capped launch
-  and takes no derive seat. Open every launch with a review-gate header:
-  opus-cap in the review, verify, and swarm rounds, and round: swarm
-  outside a review. Omit the model option.
+  hold in one read changes the question. Where the brief splits, use
+  opus-high. Where no oracle outside the agent settles the principal
+  claim, use fable-xhigh. Importance, file count, subject matter, and the
+  ultracode setting are not reasons to reach this rung. Counts as a capped
+  launch and takes no derive seat. Open every launch with a review-gate
+  header: opus-cap in the review, verify, and swarm rounds, and round:
+  swarm outside a review. Omit the model option.
 model: claude-fable-5-1
 effort: high
 ---
