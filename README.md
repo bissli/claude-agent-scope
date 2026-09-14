@@ -12,7 +12,7 @@ and shares derive seats between them, and the directives that pick a tier.
 ```
 
 The first command registers this repo as a plugin source (a "marketplace");
-the second installs the eight tier agents, the two hooks, and the two
+the second installs the eight tier agents, the three hooks, and the two
 directives from it, and the next session runs them.
 
 ## Requirements
@@ -73,7 +73,8 @@ launch past the budget and names the fix.
 | Review gate               | `scripts/review-gate.py`              | PreToolUse hook on `Agent` and `Workflow`; caps Opus and Fable launches per round; requires a header on every capped launch |
 | Model-selection directive | `directives/agent-model-selection.md` | Injected at session start; the two questions that pick a tier                                                               |
 | Review-sizing directive   | `directives/review-sizing.md`         | Injected at session start; how to size a review round and write the header                                                  |
-| Hook wiring               | `hooks/hooks.json`                    | Wires four hook commands: two PreToolUse scripts and two SessionStart directive injections                                  |
+| Outcome log               | `scripts/record-outcome.py`           | SubagentStop hook; records what each subagent returned - size and digest only, never the text                               |
+| Hook wiring               | `hooks/hooks.json`                    | Wires five hook commands: two PreToolUse scripts, one SubagentStop script, and two SessionStart directive injections        |
 
 ## The tiers
 
@@ -235,9 +236,19 @@ script's capped stages reserve together and are refused whole.
 
 State lives in `~/.claude/cache/review-gate/`: one `<session>.json` of
 per-cycle counters, pruned to the last eight cycles, and `gate.jsonl`, an
-append-only log of every launch with its type, round, cap, decision, and
-description label, which grows until deleted. The environment variable
-`REVIEW_GATE_HOME` overrides the path.
+append-only log of every launch with its type, round, cap, decision,
+description label, and `tool_use_id`, which grows until deleted. The
+environment variable `REVIEW_GATE_HOME` overrides the path.
+
+`outcome.jsonl` sits beside it, one row per subagent that stopped,
+carrying the returned message's size and a truncated digest - never its
+text. A row joins its launch row through `tool_use_id`: the launch
+records it, `<session>/subagents/agent-<id>.meta.json` carries it as
+`toolUseId`, and `SubagentStop` supplies the `agent_id` that names that
+file. The join is exact for an `Agent` launch. A `Workflow` stage writes
+no `toolUseId` and no description, so its outcome row shares only
+`session` with the gate log and stays unattributable to a stage. Denied
+launches never run and so produce no row.
 
 ## What the pins do not cover
 

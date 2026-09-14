@@ -9,6 +9,8 @@ import pytest
 
 HOOK_PATH = (
     pathlib.Path(__file__).resolve().parents[1] / 'scripts' / 'review-gate.py')
+OUTCOME_PATH = (
+    pathlib.Path(__file__).resolve().parents[1] / 'scripts' / 'record-outcome.py')
 
 
 @pytest.fixture
@@ -20,6 +22,21 @@ def gate(tmp_path, monkeypatch):
     # ship with the next release.
     monkeypatch.setattr(sys, 'dont_write_bytecode', True)
     spec = importlib.util.spec_from_file_location('review_gate', HOOK_PATH)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+@pytest.fixture
+def outcome(tmp_path, monkeypatch):
+    """Load record-outcome.py with state redirected to tmp_path.
+
+    The REVIEW_GATE_HOME env var controls where outcome.jsonl is written,
+    matching the gate fixture so both modules share the same temp dir.
+    """
+    monkeypatch.setenv('REVIEW_GATE_HOME', str(tmp_path))
+    monkeypatch.setattr(sys, 'dont_write_bytecode', True)
+    spec = importlib.util.spec_from_file_location('record_outcome', OUTCOME_PATH)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module

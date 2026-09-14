@@ -21,6 +21,16 @@
         ]
       }
     ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/record-outcome.py\""
+          }
+        ]
+      }
+    ],
     "SessionStart": [
       {
         "hooks": [

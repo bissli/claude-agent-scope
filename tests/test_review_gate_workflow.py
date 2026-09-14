@@ -112,6 +112,24 @@ EMPTY_CYCLE = {
     }
 
 
+def test_logged_workflow_row_carries_the_payload_tool_use_id(gate):
+    """Verify a Workflow call logs the PreToolUse tool_use_id.
+
+    Mutation: dropping tool_use_id from the Workflow event dict, leaving
+        every workflow row without the one field an outcome row could
+        ever be matched against.
+    Oracle: every row the call logs carries the exact id the payload
+        supplied.
+    """
+    payload = workflow_input(
+        META + "agent('go', {agentType: 'agent-scope:sonnet-high'})")
+    payload['tool_use_id'] = 'toolu_01WorkflowKey'
+    gate.gate_workflow(payload)
+    rows = all_logs(gate)
+    assert rows
+    assert all(row['tool_use_id'] == 'toolu_01WorkflowKey' for row in rows)
+
+
 # --- The tier rule ---
 
 

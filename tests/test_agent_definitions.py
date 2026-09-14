@@ -410,11 +410,11 @@ def test_hook_commands_resolve():
     """Verify every command in hooks/hooks.json names an existing script.
 
     Mutation: moving a script without updating hooks.json, dropping one
-        of the four commands, or hardcoding a path in place of the
+        of the five commands, or hardcoding a path in place of the
         ${CLAUDE_PLUGIN_ROOT} placeholder.
-    Oracle: four commands - two PreToolUse scripts and two SessionStart
-        directive injections - each carrying the placeholder and each
-        resolving to a file under the repo root.
+    Oracle: five commands - two PreToolUse scripts, one SubagentStop script,
+        and two SessionStart directive injections - each carrying the
+        placeholder and each resolving to a file under the repo root.
     """
     hooks_json = REPO_ROOT / 'hooks' / 'hooks.json'
     hooks_data = json.loads(hooks_json.read_text(encoding='utf-8'))
@@ -424,9 +424,9 @@ def test_hook_commands_resolve():
             for hook in entry.get('hooks', []):
                 cmd = hook.get('command', '')
                 commands.append(cmd)
-    assert len(commands) == 4
+    assert len(commands) == 5
     checked = [cmd for cmd in commands if '${CLAUDE_PLUGIN_ROOT}' in cmd]
-    assert len(checked) == 4
+    assert len(checked) == 5
     for cmd in checked:
         relative = cmd.split('${CLAUDE_PLUGIN_ROOT}/', 1)[-1]
         relative = relative.split('"')[0].strip()

@@ -841,6 +841,7 @@ def gate_agent(hook_input: dict[str, Any]) -> dict[str, Any] | None:
     event: dict[str, Any] = {
         'tool': 'Agent',
         'session': hook_input.get('session_id'),
+        'tool_use_id': hook_input.get('tool_use_id'),
         'model': model or None,
         'agent_type': agent_type or None,
         'label': tool_input.get('description'),
@@ -1699,6 +1700,7 @@ def gate_workflow(hook_input: dict[str, Any]) -> dict[str, Any] | None:
     event: dict[str, Any] = {
         'tool': 'Workflow',
         'session': hook_input.get('session_id'),
+        'tool_use_id': hook_input.get('tool_use_id'),
         'model': None,
         'agent_type': None,
         'label': None,

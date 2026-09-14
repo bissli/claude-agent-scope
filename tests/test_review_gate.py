@@ -217,6 +217,26 @@ def test_unmarked_opus_launch_is_denied(gate, subagent_type, model):
     assert not state_file(gate).exists()
 
 
+def test_logged_agent_row_carries_the_payload_tool_use_id(gate):
+    """Verify an Agent launch logs the PreToolUse tool_use_id.
+
+    Mutation: dropping tool_use_id from the Agent event dict, which
+        leaves gate.jsonl unable to join to outcome.jsonl at all, since
+        meta.json names the launch by that id and nothing else in the
+        row does.
+    Oracle: the logged row carries the exact id the payload supplied,
+        distinct from the session and the cycle key it would otherwise
+        be confused with.
+    """
+    payload = agent_input(
+        'Look up the callers.', subagent_type='agent-scope:haiku')
+    payload['tool_use_id'] = 'toolu_01JoinKey'
+    assert gate.gate_agent(payload) is None
+    row = last_log(gate)
+    assert row['tool_use_id'] == 'toolu_01JoinKey'
+    assert row['tool_use_id'] not in {row.get('session'), row.get('turn')}
+
+
 @pytest.mark.parametrize(
     ('subagent_type', 'model'),
     [('agent-scope:sonnet-high', None), ('agent-scope:haiku', None), ('Explore', None),
