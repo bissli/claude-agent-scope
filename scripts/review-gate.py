@@ -20,6 +20,10 @@ Notes
   general-purpose or with no type would inherit the session effort and
   is denied; so is a bare tier name, which names no agent the plugin
   ships, and a prefixed name that is not a tier.
+- agent-scope:fable-medium is the on-request tier, launched where a user
+  asks for Fable at medium to write text. It takes no part in the
+  rounds: a header on it is denied, a Workflow stage on it is denied,
+  and a headerless Agent launch is allowed and takes no slot.
 - Only a capped launch takes a slot: an Opus or Fable tier, or a type
   that runs on the main-loop model. An explicit haiku or sonnet model,
   a sonnet or haiku tier, and an Explore agent that names no model sit
@@ -124,7 +128,9 @@ FABLE_TIERS = ('fable-high', 'fable-xhigh')
 CAPPED_TIERS = OPUS_TIERS + FABLE_TIERS
 SEAT_TIERS = ('opus-xhigh', 'fable-xhigh')
 CHEAP_TIERS = ('sonnet-medium', 'sonnet-high', 'haiku')
-TIERS = CAPPED_TIERS + CHEAP_TIERS
+REQUEST_TIERS = ('fable-medium',)
+UNCOUNTED_TIERS = CHEAP_TIERS + REQUEST_TIERS
+TIERS = CAPPED_TIERS + UNCOUNTED_TIERS
 SEAT_TIERS_TEXT = ' and '.join(TIER_PREFIX + tier for tier in SEAT_TIERS)
 # The high tiers are offered together, with the condition that picks
 # between them: without it a seat refusal reads as a push to Fable.
@@ -132,7 +138,10 @@ HIGH_TIERS_TEXT = (
     f'{TIER_PREFIX}opus-high, or {TIER_PREFIX}fable-high where the brief fails '
     'to split')
 FABLE_TIERS_TEXT = ' or '.join(TIER_PREFIX + tier for tier in FABLE_TIERS)
+REQUEST_TIERS_TEXT = ', '.join(TIER_PREFIX + tier for tier in REQUEST_TIERS)
 TIERS_TEXT = ', '.join(TIER_PREFIX + tier for tier in TIERS)
+STAGE_TIERS_TEXT = ', '.join(
+    TIER_PREFIX + tier for tier in CAPPED_TIERS + CHEAP_TIERS)
 INHERITING_TYPES = {'', 'general-purpose'}
 FORK_TYPE = 'fork'
 EXPLORE_TYPE = 'explore'
@@ -530,12 +539,12 @@ def is_uncapped(tool_input: dict[str, Any]) -> bool:
     Returns
     -------
     bool
-        True for an explicit haiku or sonnet model, for a sonnet or haiku
-        tier under the plugin prefix, and for an Explore agent that names
-        no model; an uncapped launch is allowed in any quantity. An
-        Explore agent with any other model is counted, because the pin
-        hook strips an Opus alias and the launch then inherits the
-        main-loop Opus model. A fork is counted whatever model it names:
+        True for an explicit haiku or sonnet model, for a sonnet, haiku,
+        or on-request tier under the plugin prefix, and for an Explore
+        agent that names no model; an uncapped launch is allowed in any
+        quantity. An Explore agent with any other model is counted,
+        because the pin hook strips an Opus alias and the launch then
+        inherits the main-loop Opus model. A fork is counted whatever model it names:
         the runtime ignores a fork's model and runs it on the main-loop
         model. Type and model names compare lowercased.
     """
@@ -543,7 +552,7 @@ def is_uncapped(tool_input: dict[str, Any]) -> bool:
     scoped, name = split_type(str(tool_input.get('subagent_type') or '').lower())
     if not scoped and name == FORK_TYPE:
         return False
-    if model in UNCAPPED_MODELS or (scoped and name in CHEAP_TIERS):
+    if model in UNCAPPED_MODELS or (scoped and name in UNCOUNTED_TIERS):
         return True
     return not scoped and name == EXPLORE_TYPE and not model
 
@@ -818,10 +827,11 @@ def gate_agent(hook_input: dict[str, Any]) -> dict[str, Any] | None:
     Notes
     -----
     - Order of checks: fable model, tier named under the prefix, header
-      syntax, header present on a capped launch, round present and valid,
-      opus-cap value, derive value and tier, uncapped tiers, derive
-      present on a deriving tier, opus-cap presence on review, verify, and
-      swarm, cycle key, then the slot reservation.
+      syntax, a header on the on-request tier, header present on a
+      capped launch, round present and valid, opus-cap value, derive
+      value and tier, uncapped tiers, derive present on a deriving tier,
+      opus-cap presence on review, verify, and swarm, cycle key, then
+      the slot reservation.
     - An allowed launch on either deriving tier returns a systemMessage
       envelope with no permission decision: the call continues and the
       user sees the seat, the kind, and the label.
@@ -849,7 +859,8 @@ def gate_agent(hook_input: dict[str, Any]) -> dict[str, Any] | None:
     if model == 'fable':
         return deny(
             'review-gate: drop the fable model option and launch '
-            f'{FABLE_TIERS_TEXT} instead. An invocation-level model overrides the '
+            f'{FABLE_TIERS_TEXT} instead, or {REQUEST_TIERS_TEXT} where a user '
+            'asked for Fable at medium. An invocation-level model overrides the '
             "definitions' version pins, and the fable family alias is configurable "
             'and can change.',
             event)
@@ -871,6 +882,13 @@ def gate_agent(hook_input: dict[str, Any]) -> dict[str, Any] | None:
     header, header_error = parse_header(str(tool_input.get('prompt') or ''))
     if header_error:
         return deny(f'review-gate: {header_error}.', event)
+    if header is not None and tier_name in REQUEST_TIERS:
+        return deny(
+            f'review-gate: {agent_type} carries no <review-gate> header and takes '
+            'no part in a round: it runs where a user asks for Fable at medium to '
+            'write text. Drop the header, or run review, verify, synthesize, and '
+            f'swarm work on {FABLE_TIERS_TEXT}.',
+            event)
     if header is None:
         if is_uncapped(tool_input):
             allow({**event, 'scope': 'not-review-marked'})
@@ -1677,12 +1695,12 @@ def gate_workflow(hook_input: dict[str, Any]) -> dict[str, Any] | None:
       stage, round, opus-cap, and derive values, derive on a deriving
       tier alone, opus-cap presence on a capped review, verify, or swarm
       stage. Four rules are Workflow's own: agentType names one of the
-      eight prefixed tiers and nothing else, so Explore, Plan, and fork
-      deny here and pass on Agent; it compares as written, prefix and
-      case included, where gate_agent lowercases; a capped stage must run
-      at most once; and it must open its prompt with a literal whose text
-      before the first substitution is the header. The first failing
-      stage denies the call.
+      eight stage tiers and nothing else, so Explore, Plan, fork, and
+      the on-request tier deny here and pass on Agent; it compares as
+      written, prefix and case included, where gate_agent lowercases; a
+      capped stage must run at most once; and it must open its prompt
+      with a literal whose text before the first substitution is the
+      header. The first failing stage denies the call.
     - The marked capped stages then reserve their slots in one batch on
       the same cycle counters Agent launches use; a refusal denies the
       call and moves no counter. A cheap stage never takes a slot, in any
@@ -1696,7 +1714,7 @@ def gate_workflow(hook_input: dict[str, Any]) -> dict[str, Any] | None:
     tool_input = hook_input.get('tool_input') or {}
     if not isinstance(tool_input, dict):
         tool_input = {}
-    tiers = TIERS_TEXT
+    tiers = STAGE_TIERS_TEXT
     event: dict[str, Any] = {
         'tool': 'Workflow',
         'session': hook_input.get('session_id'),
@@ -1761,6 +1779,13 @@ def gate_workflow(hook_input: dict[str, Any]) -> dict[str, Any] | None:
                 f'review-gate: {where}: name the tier: agentType {tiers}. '
                 'general-purpose and an omitted agentType inherit the main-loop '
                 'model and effort.',
+                site)
+        if tier in REQUEST_TIERS:
+            return deny(
+                f'review-gate: {where}: {REQUEST_TIERS_TEXT} runs only from an '
+                'Agent launch a user asked for, never as a Workflow stage. Stage '
+                f'work that fails to split runs on {FABLE_TIERS_TEXT}; other stage '
+                f'work runs on {TIER_PREFIX}sonnet-high or {TIER_PREFIX}haiku.',
                 site)
         if not scoped and tier in TIERS:
             return deny(

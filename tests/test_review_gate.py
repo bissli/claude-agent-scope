@@ -1723,6 +1723,43 @@ def test_derive_on_fable_high_is_denied_and_takes_no_slot(gate):
     assert decision(gate.gate_agent(fable_high())) == 'deny'
 
 
+def test_fable_medium_launches_headerless_and_takes_no_slot(gate):
+    """Verify the on-request tier launches unmarked and fills no counter.
+
+    Mutation: listing fable-medium among the capped tiers, which denies
+        an unmarked launch for want of a header; or dropping it from
+        TIERS, which denies it as no tier at all.
+    Oracle: four unmarked launches all allow, one past the three the
+        default cap holds in a round; the last is logged
+        not-review-marked and no state file is written.
+    """
+    launch = agent_input(
+        'Write the guide.', subagent_type='agent-scope:fable-medium')
+    assert all(gate.gate_agent(launch) is None for _ in range(4))
+    assert last_log(gate)['scope'] == 'not-review-marked'
+    assert not state_file(gate).exists()
+
+
+@pytest.mark.parametrize('round_name', ['review', 'verify', 'synthesize', 'swarm'])
+def test_a_marked_fable_medium_launch_is_denied(gate, round_name):
+    """Verify a header on the on-request tier is denied in every round.
+
+    Mutation: treating fable-medium as a cheap tier, which allows a
+        marked launch and runs a round on it; or counting it as capped,
+        which fixes the cycle's opus-cap from its header.
+    Oracle: the header is denied in each of the four rounds naming the
+        two Fable review tiers, no state file is written, and a
+        fable-high review at opus-cap 3 then allows, which a cap fixed
+        at the declared 6 would refuse as a mismatch.
+    """
+    output = gate.gate_agent(agent_input(
+        header(round_name, '6'), subagent_type='agent-scope:fable-medium'))
+    assert decision(output) == 'deny'
+    assert 'agent-scope:fable-high or agent-scope:fable-xhigh' in reason(output)
+    assert not state_file(gate).exists()
+    assert gate.gate_agent(fable_high()) is None
+
+
 def test_fable_high_and_opus_share_one_round_counter(gate):
     """Verify the capped tiers of both families fill one round cap.
 

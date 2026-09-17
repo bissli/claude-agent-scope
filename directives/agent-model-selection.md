@@ -12,13 +12,20 @@ keep throwaway output out of the main context.
 | Reasoning-critical, needs the conversation  | Keep inline                                      |
 
 Every `Agent` launch names its type and omits `model`. The types are
-the eight tiers the `agent-scope` plugin ships, agent definitions that
-pin model and effort, named with the plugin prefix:
+the eight routing tiers the `agent-scope` plugin ships, agent
+definitions that pin model and effort, named with the plugin prefix:
 `agent-scope:haiku`, `agent-scope:sonnet-medium`,
 `agent-scope:sonnet-high`, `agent-scope:opus-medium`,
 `agent-scope:opus-high`, `agent-scope:opus-xhigh`,
 `agent-scope:fable-high`, `agent-scope:fable-xhigh` - plus `Explore`,
 which runs on haiku, and `Plan`, which runs on the main-loop model.
+
+A ninth definition, `agent-scope:fable-medium`, sits outside this
+routing. It runs where a user asks for a Fable agent at medium to write
+text - a document, a guide, a skill file. It carries no `<review-gate>`
+header, counts against no cap and no derive seat, and belongs to no
+round: the gate denies a header on it and denies it as a `Workflow`
+stage.
 
 Two questions pick the tier. Take the lowest answer to each that fits,
 with one override: a verdict on a claim - whether a reported finding
@@ -38,10 +45,10 @@ produces:
 
 Then the effort, by where the oracle lives - what the result is
 checked against. Name it in the brief. The haiku tier ships with no
-effort level. The plugin offers Sonnet at medium and high, Opus at
-medium, high, and xhigh, and Fable at high and xhigh. Fable has no
-medium rung, so a brief that fails to split is `agent-scope:fable-high`
-even where it names the oracle and the items:
+effort level. Routing offers Sonnet at medium and high, Opus at
+medium, high, and xhigh, and Fable at high and xhigh. Routing has no
+Fable medium rung, so a brief that fails to split is
+`agent-scope:fable-high` even where it names the oracle and the items:
 
 - `medium`: the brief names the oracle and the items - these claims at
   these lines, these files against this pattern - and the agent adds
@@ -67,5 +74,5 @@ even where it names the oracle and the items:
 The gate denies `general-purpose`, an omitted type, a tier name without
 its prefix, and a `fable` model option on any type: that option outranks
 the Fable tiers' version pins, and the `fable` alias can change. A
-`Workflow` stage names one of the eight tiers as a literal `agentType`,
-and the gate denies an unpinned stage.
+`Workflow` stage names one of the eight routing tiers as a literal
+`agentType`, and the gate denies an unpinned stage.

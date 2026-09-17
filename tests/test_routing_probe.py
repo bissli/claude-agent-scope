@@ -42,7 +42,7 @@ FRONTMATTER_RE = re.compile(r'\A---\n(?P<body>.*?)\n---\n', re.DOTALL)
 DESCRIPTION_RE = re.compile(r'^description: >-\n(?P<block>(?:  .*\n)+)', re.MULTILINE)
 TIERS = (
     'haiku', 'sonnet-medium', 'sonnet-high', 'opus-medium', 'opus-high',
-    'opus-xhigh', 'fable-high', 'fable-xhigh')
+    'opus-xhigh', 'fable-high', 'fable-xhigh', 'fable-medium')
 INLINE = 'inline'
 NONE_WORDS = {'', 'none', 'null', 'absent', 'omitted', 'no', 'n/a', '-'}
 SYSTEM_PROMPT = 'You answer routing questions about a directive. Reply with JSON only.'
@@ -91,8 +91,8 @@ BRIEFS = [
       'two tests, and run the suite.')),
     ('h', ('agent-scope:fable-high',), None,
      ('medium shape (claims, lines, and the contract handed over) on material '
-      'beyond one Opus read that no subset settles; Fable has no medium rung, '
-      'so fable-high'),
+      'beyond one Opus read that no subset settles; routing offers Fable at '
+      'high and xhigh alone, so fable-high'),
      ('Here are four hundred claims, one per call site across the four '
       'modules, each with its line, and the contract every site must satisfy: '
       'more than one Opus agent reads at once, and no claim can be checked '

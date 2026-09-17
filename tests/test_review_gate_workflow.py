@@ -239,6 +239,25 @@ def test_prefixed_typo_tier_in_workflow_is_denied(gate):
     assert cycle_state(gate) is None
 
 
+def test_a_fable_medium_stage_is_denied(gate):
+    """Verify the on-request tier is denied as a Workflow stage.
+
+    Mutation: leaving fable-medium among the stage tiers, so a script
+        runs Fable at medium on a stage, marked or unmarked; or offering
+        it in the stage list a wrong agentType is steered to.
+    Oracle: an unmarked and a marked stage are both denied naming the
+        Agent launch as its only home, with no state written, and the
+        list in the denial of a misspelled tier omits it.
+    """
+    for prompt_js in ("'Write the guide.'", marked()):
+        out = run(gate, 'await ' + stage(prompt_js, 'agent-scope:fable-medium'))
+        assert decision(out) == 'deny'
+        assert 'runs only from an Agent launch' in reason(out)
+        assert cycle_state(gate) is None
+    out = run(gate, 'await ' + stage("'hi'", 'agent-scope:sonnet-hgih'))
+    assert 'agent-scope:fable-medium' not in reason(out)
+
+
 @pytest.mark.parametrize('option', ["model: 'haiku'", "effort: 'low'"])
 def test_model_and_effort_options_are_denied(gate, option):
     """Verify a model or effort key in the options is denied on any tier.

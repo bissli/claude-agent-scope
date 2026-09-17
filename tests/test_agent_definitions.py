@@ -29,6 +29,8 @@ EXPECTED = {
         'Counts as a capped launch and takes no derive seat'),
     'fable-xhigh': (
         'claude-fable-5-1', 'xhigh', 'derive seat shared with opus-xhigh'),
+    'fable-medium': (
+        'claude-fable-5-1', 'medium', 'launches with no review-gate header'),
     'sonnet-medium': ('sonnet', 'medium', 'uncapped under the review gate'),
     'sonnet-high': ('sonnet', 'high', 'uncapped under the review gate'),
     'haiku': ('haiku', None, 'uncapped under the review gate'),
@@ -182,6 +184,19 @@ def test_capped_and_deriving_tiers_match_the_gate(gate):
     """
     assert set(CAPPED_TIERS) == set(gate.CAPPED_TIERS)
     assert set(DERIVING_TIERS) == set(gate.SEAT_TIERS)
+
+
+def test_the_on_request_tier_is_uncounted(gate):
+    """Verify fable-medium is the gate's on-request tier and takes no slot.
+
+    Mutation: adding fable-medium to the capped or deriving tiers, which
+        demands the review-gate header its description says it never
+        carries.
+    Oracle: review_gate.REQUEST_TIERS, UNCOUNTED_TIERS, and CAPPED_TIERS.
+    """
+    assert set(gate.REQUEST_TIERS) == {'fable-medium'}
+    assert set(gate.REQUEST_TIERS) <= set(gate.UNCOUNTED_TIERS)
+    assert not set(gate.REQUEST_TIERS) & set(gate.CAPPED_TIERS)
 
 
 @pytest.mark.parametrize('stem', sorted(EXPECTED))
@@ -491,3 +506,21 @@ def test_the_opus_medium_body_stays_bounded():
     assert 'general audit' in body
     assert 'search broadly' not in body
     assert 'Be thorough' not in body
+
+
+def test_the_fable_medium_body_asks_for_the_text_itself():
+    """Verify fable-medium's body is a writer's, not a reviewer's copy.
+
+    Mutation: copying agents/fable-high.md or agents/fable-xhigh.md and
+        editing the frontmatter alone, which asks a tier launched to
+        write a document to review one instead; or restoring the body
+        pair Fable 5.1's safeguards refuse.
+    Oracle: the body names the file as the deliverable and the project's
+        conventions, and carries neither 'the derivation itself' nor the
+        refused pair.
+    """
+    body = definition('fable-medium').split('---\n', 2)[2]
+    assert 'the deliverable' in body
+    assert 'conventions' in body
+    assert 'the derivation itself' not in body
+    assert REFUSED_BODY_TEXT not in body

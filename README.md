@@ -1,6 +1,6 @@
 # agent-scope
 
-Eight subagent tiers that pin model and effort, uncapped Sonnet and Haiku
+Nine subagent tiers that pin model and effort, uncapped Sonnet and Haiku
 delegation, a PreToolUse gate that budgets Opus and Fable launches per round
 and shares derive seats between them, and the directives that pick a tier.
 
@@ -12,7 +12,7 @@ and shares derive seats between them, and the directives that pick a tier.
 ```
 
 The first command registers this repo as a plugin source (a "marketplace");
-the second installs the eight tier agents, the three hooks, and the two
+the second installs the nine tier agents, the three hooks, and the two
 directives from it, and the next session runs them.
 
 ## Requirements
@@ -21,12 +21,12 @@ directives from it, and the next session runs them.
 | ---------------------------- | ---------------------------------- |
 | `python3` 3.10 or later      | Both hooks                         |
 | Claude Code 2.1.219+         | The Opus tiers and the review gate |
-| Claude Code 2.1.255+         | The two Fable tiers                |
+| Claude Code 2.1.255+         | The three Fable tiers              |
 | Access to `claude-opus-5`    | The three Opus tiers               |
-| Access to `claude-fable-5-1` | The two Fable tiers                |
+| Access to `claude-fable-5-1` | The three Fable tiers              |
 
 The hooks run through `sh`, so Linux and macOS execute them. On Windows the
-eight tier agents register and the hooks do not run. Without `python3` on
+nine tier agents register and the hooks do not run. Without `python3` on
 `PATH` the two PreToolUse commands fail and Claude Code continues: no launch is
 gated, and nothing announces it. The directives still print, since `cat`
 injects them.
@@ -40,8 +40,8 @@ the Opus and Fable tiers resolve.
 
 ## What changes in a session
 
-- Eight subagent types appear, `agent-scope:haiku` through
-  `agent-scope:fable-xhigh`; their names and descriptions are 3.9KB of source
+- Nine subagent types appear, `agent-scope:haiku` through
+  `agent-scope:fable-xhigh`; their names and descriptions are 4.5KB of source
   text in the `Agent` tool listing every turn, source bytes rather than tokens
   or cost.
 - Two directive files, 3.9KB and 5.7KB of source text, print into context at
@@ -68,7 +68,7 @@ launch past the budget and names the fix.
 
 | Component                 | Path                                  | What it does                                                                                                                |
 | ------------------------- | ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| Eight tier definitions    | `agents/*.md`                         | Pin model and effort; registered as `agent-scope:<tier>`                                                                    |
+| Nine tier definitions     | `agents/*.md`                         | Pin model and effort; registered as `agent-scope:<tier>`                                                                    |
 | Model pin hook            | `scripts/pin-subagent-model.py`       | Strips bare `opus` alias so the frontmatter pin wins; pins `Explore` to haiku when no model is named                        |
 | Review gate               | `scripts/review-gate.py`              | PreToolUse hook on `Agent` and `Workflow`; caps Opus and Fable launches per round; requires a header on every capped launch |
 | Model-selection directive | `directives/agent-model-selection.md` | Injected at session start; the two questions that pick a tier                                                               |
@@ -96,11 +96,18 @@ those are set.
 | `agent-scope:opus-xhigh`    | claude-opus-5    | xhigh  | capped launch + seat | Derivation tasks; `derive:` required in header                                      |
 | `agent-scope:fable-high`    | claude-fable-5-1 | high   | capped launch        | Review, verdict, or synthesis on material that fails to split; no `derive:`         |
 | `agent-scope:fable-xhigh`   | claude-fable-5-1 | xhigh  | capped launch + seat | A derivation that fails to split; `derive:` required in header                      |
+| `agent-scope:fable-medium`  | claude-fable-5-1 | medium | uncounted            | On request only: writing a document, a guide, or a skill file; no header, no stage  |
 
-A *capped tier* is one of the three Opus definitions or the two Fable ones; a
-*deriving tier* is `opus-xhigh` or `fable-xhigh`. A launch on a deriving tier
-spends both a capped launch and one of the cycle's derive seats, which the two
-deriving tiers share. Sonnet and Haiku launches spend neither, in any quantity.
+A *capped tier* is one of the three Opus definitions or the two capped Fable
+ones; a *deriving tier* is `opus-xhigh` or `fable-xhigh`. A launch on a
+deriving tier spends both a capped launch and one of the cycle's derive seats,
+which the two deriving tiers share. Sonnet and Haiku launches spend neither, in
+any quantity.
+
+`fable-medium` is the on-request tier and spends neither. Tier routing never
+selects it: it runs where a user asks for a Fable agent at medium to write
+text. It carries no header and belongs to no round, and the gate denies both a
+header on it and a Workflow stage that names it.
 
 ## Choosing a tier
 
@@ -134,9 +141,9 @@ A verdict on a claim is always Opus or Fable, regardless of the other answers.
   settle the claim. A task that is merely hard, large, or sensitive is `high`.
 
 The haiku tier ships with no effort level. The plugin offers Sonnet at medium
-and high, Opus at medium, high, and xhigh, and Fable at high and xhigh. Fable
-has no medium rung, so a brief that fails to split is `fable-high` even where
-it names the oracle and the items.
+and high, Opus at medium, high, and xhigh, and Fable at high and xhigh.
+Routing has no Fable medium rung, so a brief that fails to split is
+`fable-high` even where it names the oracle and the items.
 
 ### What "held whole" means
 
@@ -211,14 +218,15 @@ the bare name `haiku` gets:
 review-gate: name agent-scope:haiku, not haiku; the tiers are the agent-scope plugin's agents.
 ```
 
-The gate also denies a `fable` model option on any type, the two Fable
+The gate also denies a `fable` model option on any type, the three Fable
 tiers included: an invocation-level model overrides the definitions' version
 pins, and the `fable` family alias is configurable and can change over time.
 It denies `general-purpose`, an omitted type, a prefixed name that is not one
-of the eight tiers, a capped launch with no header, and a Workflow stage that
+of the nine tiers, a capped launch with no header, and a Workflow stage that
 carries a `model` or `effort` option beside its `agentType`. `Plan` and a
 `fork` run on the main-loop model, so the gate counts them as capped launches
-and requires the header; `Explore` with no `model` is uncapped. An explicit
+and requires the header; `Explore` with no `model` is uncapped, and
+`agent-scope:fable-medium` is uncounted and refuses a header. An explicit
 `sonnet` or `haiku` model keeps a launch uncapped, the Fable tiers included,
 and runs that definition on the cheap model, since the pin hook rewrites
 neither alias and a `model` option outranks the frontmatter pin; a `fork` is
