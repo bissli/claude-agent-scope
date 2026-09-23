@@ -20,10 +20,10 @@ FIELDS = ('name', 'description', 'model', 'effort')
 CAPPED_TIERS = ('opus-medium', 'opus-high', 'opus-xhigh', 'fable-high', 'fable-xhigh')
 DERIVING_TIERS = ('opus-xhigh', 'fable-xhigh')
 EXPECTED = {
-    'opus-medium': ('claude-opus-5', 'medium', 'Counts as a capped launch'),
-    'opus-high': ('claude-opus-5', 'high', 'Three per round is the default cap'),
+    'opus-medium': ('claude-opus-5-5', 'medium', 'Counts as a capped launch'),
+    'opus-high': ('claude-opus-5-5', 'high', 'Three per round is the default cap'),
     'opus-xhigh': (
-        'claude-opus-5', 'xhigh', 'derive seat shared with fable-xhigh'),
+        'claude-opus-5-5', 'xhigh', 'derive seat shared with fable-xhigh'),
     'fable-high': (
         'claude-fable-5-1', 'high',
         'Counts as a capped launch and takes no derive seat'),

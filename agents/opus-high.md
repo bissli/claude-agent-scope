@@ -10,7 +10,7 @@ description: >-
   the launch against it. Open every launch with a review-gate header:
   opus-cap in the review, verify, and swarm rounds, and round: swarm
   outside a review.
-model: claude-opus-5
+model: claude-opus-5-5
 effort: high
 ---
 

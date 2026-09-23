@@ -7,7 +7,7 @@ description: >-
   Also mechanical Opus checks where Sonnet is not enough. Counts as a
   capped launch. Open every launch with a review-gate header: opus-cap in
   the review, verify, and swarm rounds, and round: swarm outside a review.
-model: claude-opus-5
+model: claude-opus-5-5
 effort: medium
 ---
 
