@@ -24,6 +24,7 @@ directives from it, and the next session runs them.
 | Claude Code 2.1.255+         | The three Fable tiers              |
 | Access to `claude-opus-5-5`  | The three Opus tiers               |
 | Access to `claude-sonnet-5`  | The two Sonnet tiers               |
+| Access to `claude-haiku-4-5` | The haiku tier                     |
 | Access to `claude-fable-5-1` | The three Fable tiers              |
 
 The hooks run through `sh`, so Linux and macOS execute them. On Windows the
@@ -70,7 +71,7 @@ launch past the budget and names the fix.
 | Component                 | Path                                  | What it does                                                                                                                |
 | ------------------------- | ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
 | Nine tier definitions     | `agents/*.md`                         | Pin model and effort; registered as `agent-scope:<tier>`                                                                    |
-| Model pin hook            | `scripts/pin-subagent-model.py`       | Strips bare `opus`, and bare `sonnet` on Sonnet tiers, so the frontmatter pin wins; pins `Explore` to haiku when unnamed    |
+| Model pin hook            | `scripts/pin-subagent-model.py`       | Strips bare `opus` and a tier's own bare `sonnet`/`haiku` so the pin wins; pins `Explore` to haiku when no model is named   |
 | Review gate               | `scripts/review-gate.py`              | PreToolUse hook on `Agent` and `Workflow`; caps Opus and Fable launches per round; requires a header on every capped launch |
 | Model-selection directive | `directives/agent-model-selection.md` | Injected at session start; the two questions that pick a tier                                                               |
 | Review-sizing directive   | `directives/review-sizing.md`         | Injected at session start; how to size a review round and write the header                                                  |
@@ -81,15 +82,15 @@ launch past the budget and names the fix.
 
 Claude Code registers plugin agents as `<plugin>:<agent>`, so a launch
 names `agent-scope:opus-high`, never `opus-high`. The Opus tiers pin the
-full model id `claude-opus-5-5`, the Sonnet tiers pin `claude-sonnet-5`, and
-the Fable tiers pin `claude-fable-5-1`, so the account needs access to those
-models. The haiku tier names the family alias, which resolves to the
-account's default for that family or to `ANTHROPIC_DEFAULT_HAIKU_MODEL` where
-that is set.
+full model id `claude-opus-5-5`, the Sonnet tiers pin `claude-sonnet-5`, the
+haiku tier pins `claude-haiku-4-5`, and the Fable tiers pin
+`claude-fable-5-1`, so the account needs access to those models. The
+`ANTHROPIC_DEFAULT_*_MODEL` settings never move a tier: they decide only what
+a bare family alias means outside the tiers.
 
 | Type                        | Model            | Effort | Budget               | Use                                                                                 |
 | --------------------------- | ---------------- | ------ | -------------------- | ----------------------------------------------------------------------------------- |
-| `agent-scope:haiku`         | haiku            | -      | uncapped             | Search, grep fan-out, classification, throwaway output                              |
+| `agent-scope:haiku`         | claude-haiku-4-5 | -      | uncapped             | Search, grep fan-out, classification, throwaway output                              |
 | `agent-scope:sonnet-medium` | claude-sonnet-5  | medium | uncapped             | Checklist sweeps, scripted checks, bulk edits, extraction                           |
 | `agent-scope:sonnet-high`   | claude-sonnet-5  | high   | uncapped             | Code, tests, edits, single-module debugging, review coverage past the capped budget |
 | `agent-scope:opus-medium`   | claude-opus-5-5  | medium | capped launch        | Verify with handed claims and lines; mechanical Opus checks                         |
@@ -231,9 +232,9 @@ and requires the header; `Explore` with no `model` is uncapped, and
 `sonnet` or `haiku` model keeps a launch uncapped, the Fable tiers included,
 and runs that definition on the cheap model, since a `model` option outranks
 the frontmatter pin. The pin hook removes a bare `sonnet` only on the two
-Sonnet tiers, which then run their own `claude-sonnet-5` pin. A `fork` is the
-exception and stays counted whatever `model` it names. A launch names its
-tier and omits `model`.
+Sonnet tiers and a bare `haiku` only on the haiku tier, which then run their
+own pins. A `fork` is the exception and stays counted whatever `model` it
+names. A launch names its tier and omits `model`.
 
 In a `Workflow` script a capped stage is one `agent()` call at the top level,
 a thunk in `parallel([...])`, or a `.then()`, `.catch()`, or `.finally()`

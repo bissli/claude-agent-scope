@@ -20,15 +20,18 @@ Notes
   named; nothing here encodes a version.
 - A full ``claude-opus-*`` id passes through untouched: it never collapses, so
   an explicit version request is honored as given.
-- A bare Sonnet alias is removed on the plugin's two Sonnet tiers alone, so
-  their frontmatter pin wins over the account's Sonnet default. Every other
-  type passes it through: with no Sonnet pin beneath the alias, removing it
-  would run the launch on the main-loop model while ``review-gate.py``
-  counts it as an uncapped Sonnet launch.
-- ``haiku`` and ``fable`` pass through untouched. Passing one through is
-  not a grant. ``review-gate.py`` decides the call after this hook runs,
-  and it denies ``fable`` on every type, since an invocation-level model
-  outranks the version pin in the Fable definitions under ``agents/``.
+- A bare alias naming a pinned tier's own family is removed there too:
+  ``sonnet`` on the two Sonnet tiers, ``haiku`` on the haiku tier. Their
+  frontmatter pin then wins over the account's default for that family.
+- Every other type passes ``sonnet`` and ``haiku`` through. Removing one
+  would run the launch on that type's own pin, such as ``claude-fable-5-1``,
+  or else on the main-loop model, while ``review-gate.py`` counts it as an
+  uncapped launch.
+- ``fable`` passes through untouched. Passing it through is not a grant.
+  ``review-gate.py`` runs beside this hook, its deny outranks this hook's
+  allow, and it denies ``fable`` on every type, since an invocation-level
+  model outranks the version pin in the Fable definitions under
+  ``agents/``.
 - ``Explore`` is pinned to ``haiku`` when the caller names no model, keeping
   grep-fanout work off the expensive main-loop model.
 """
@@ -40,7 +43,11 @@ from typing import Any
 MODEL_DEFAULTS = {
     'Explore': 'haiku',
     }
-SONNET_TIERS = {'agent-scope:sonnet-medium', 'agent-scope:sonnet-high'}
+FAMILY_BY_PINNED_TIER = {
+    'agent-scope:sonnet-medium': 'sonnet',
+    'agent-scope:sonnet-high': 'sonnet',
+    'agent-scope:haiku': 'haiku',
+    }
 
 
 def rewrite(tool_input: dict[str, Any]) -> dict[str, Any] | None:
@@ -58,20 +65,18 @@ def rewrite(tool_input: dict[str, Any]) -> dict[str, Any] | None:
     """
     model = str(tool_input.get('model') or '').strip()
     normalized = model.lower()
+    subagent_type = str(tool_input.get('subagent_type') or '')
 
     if not model:
-        default = MODEL_DEFAULTS.get(str(tool_input.get('subagent_type') or ''))
+        default = MODEL_DEFAULTS.get(subagent_type)
         if default is None:
             return None
         return {**tool_input, 'model': default}
 
-    sonnet_on_sonnet_tier = (
-        normalized.startswith('sonnet')
-        and str(tool_input.get('subagent_type') or '').lower() in SONNET_TIERS)
-    if not normalized.startswith('opus') and not sonnet_on_sonnet_tier:
-        return None
-
-    return {key: value for key, value in tool_input.items() if key != 'model'}
+    if (normalized.startswith('opus')
+        or normalized == FAMILY_BY_PINNED_TIER.get(subagent_type.lower())):
+        return {key: value for key, value in tool_input.items() if key != 'model'}
+    return None
 
 
 def main() -> None:
