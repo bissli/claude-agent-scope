@@ -46,8 +46,11 @@ produces:
 Then the effort, by where the oracle lives - what the result is
 checked against. Name it in the brief. The haiku tier ships with no
 effort level. Routing offers Sonnet at medium and high, Opus at
-medium, high, and xhigh, and Fable at high and xhigh. Routing has no
-Fable medium rung, so a brief that fails to split is
+medium, high, and xhigh, and Fable at high and xhigh. Sonnet 5 at
+effort medium does the high rung's work, so `agent-scope:sonnet-high`
+runs at medium too. The rung still picks the Sonnet tier, and the
+tier's prompt sets how much the agent adds. Routing has no Fable
+medium rung, so a brief that fails to split is
 `agent-scope:fable-high` even where it names the oracle and the items:
 
 - `medium`: the brief names the oracle and the items - these claims at

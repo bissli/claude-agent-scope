@@ -92,7 +92,7 @@ a bare family alias means outside the tiers.
 | --------------------------- | ---------------- | ------ | -------------------- | ----------------------------------------------------------------------------------- |
 | `agent-scope:haiku`         | claude-haiku-4-5 | -      | uncapped             | Search, grep fan-out, classification, throwaway output                              |
 | `agent-scope:sonnet-medium` | claude-sonnet-5  | medium | uncapped             | Checklist sweeps, scripted checks, bulk edits, extraction                           |
-| `agent-scope:sonnet-high`   | claude-sonnet-5  | high   | uncapped             | Code, tests, edits, single-module debugging, review coverage past the capped budget |
+| `agent-scope:sonnet-high`   | claude-sonnet-5  | medium | uncapped             | Code, tests, edits, single-module debugging, review coverage past the capped budget |
 | `agent-scope:opus-medium`   | claude-opus-5-5  | medium | capped launch        | Verify with handed claims and lines; mechanical Opus checks                         |
 | `agent-scope:opus-high`     | claude-opus-5-5  | high   | capped launch        | Review, multi-file debugging, synthesis; the default Opus tier                      |
 | `agent-scope:opus-xhigh`    | claude-opus-5-5  | xhigh  | capped launch + seat | Derivation tasks; `derive:` required in header                                      |
@@ -144,6 +144,10 @@ A verdict on a claim is always Opus or Fable, regardless of the other answers.
 
 The haiku tier ships with no effort level. The plugin offers Sonnet at medium
 and high, Opus at medium, high, and xhigh, and Fable at high and xhigh.
+Sonnet 5 at effort medium does the high rung's work, so `sonnet-high` runs at
+medium too. The rung still picks the Sonnet tier, and the tier's prompt sets
+how much the agent adds: `sonnet-high` searches past the brief, and
+`sonnet-medium` adds nothing.
 Routing has no Fable medium rung, so a brief that fails to split is
 `fable-high` even where it names the oracle and the items.
 
