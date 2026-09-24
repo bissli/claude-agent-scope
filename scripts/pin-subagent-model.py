@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""PreToolUse hook that keeps Opus subagents off the main-loop Opus version.
+"""PreToolUse hook that lets the tier frontmatter pins outrank a bare alias.
 
 Claude Code resolves a subagent's model as per-invocation ``model``
 parameter -> definition ``model`` frontmatter -> ``CLAUDE_CODE_SUBAGENT_MODEL``
@@ -20,11 +20,15 @@ Notes
   named; nothing here encodes a version.
 - A full ``claude-opus-*`` id passes through untouched: it never collapses, so
   an explicit version request is honored as given.
-- Non-Opus aliases pass through untouched: this hook rewrites nothing for
-  ``haiku``, ``sonnet``, or ``fable``. Passing one through is not a grant.
-  ``review-gate.py`` decides the call after this hook runs, and it denies
-  ``fable`` on every type, since an invocation-level model outranks the
-  version pin in the Fable definitions under ``agents/``.
+- A bare Sonnet alias is removed on the plugin's two Sonnet tiers alone, so
+  their frontmatter pin wins over the account's Sonnet default. Every other
+  type passes it through: with no Sonnet pin beneath the alias, removing it
+  would run the launch on the main-loop model while ``review-gate.py``
+  counts it as an uncapped Sonnet launch.
+- ``haiku`` and ``fable`` pass through untouched. Passing one through is
+  not a grant. ``review-gate.py`` decides the call after this hook runs,
+  and it denies ``fable`` on every type, since an invocation-level model
+  outranks the version pin in the Fable definitions under ``agents/``.
 - ``Explore`` is pinned to ``haiku`` when the caller names no model, keeping
   grep-fanout work off the expensive main-loop model.
 """
@@ -36,6 +40,7 @@ from typing import Any
 MODEL_DEFAULTS = {
     'Explore': 'haiku',
     }
+SONNET_TIERS = {'agent-scope:sonnet-medium', 'agent-scope:sonnet-high'}
 
 
 def rewrite(tool_input: dict[str, Any]) -> dict[str, Any] | None:
@@ -60,7 +65,10 @@ def rewrite(tool_input: dict[str, Any]) -> dict[str, Any] | None:
             return None
         return {**tool_input, 'model': default}
 
-    if not normalized.startswith('opus'):
+    sonnet_on_sonnet_tier = (
+        normalized.startswith('sonnet')
+        and str(tool_input.get('subagent_type') or '').lower() in SONNET_TIERS)
+    if not normalized.startswith('opus') and not sonnet_on_sonnet_tier:
         return None
 
     return {key: value for key, value in tool_input.items() if key != 'model'}

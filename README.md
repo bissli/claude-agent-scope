@@ -70,7 +70,7 @@ launch past the budget and names the fix.
 | Component                 | Path                                  | What it does                                                                                                                |
 | ------------------------- | ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
 | Nine tier definitions     | `agents/*.md`                         | Pin model and effort; registered as `agent-scope:<tier>`                                                                    |
-| Model pin hook            | `scripts/pin-subagent-model.py`       | Strips bare `opus` alias so the frontmatter pin wins; pins `Explore` to haiku when no model is named                        |
+| Model pin hook            | `scripts/pin-subagent-model.py`       | Strips bare `opus`, and bare `sonnet` on Sonnet tiers, so the frontmatter pin wins; pins `Explore` to haiku when unnamed    |
 | Review gate               | `scripts/review-gate.py`              | PreToolUse hook on `Agent` and `Workflow`; caps Opus and Fable launches per round; requires a header on every capped launch |
 | Model-selection directive | `directives/agent-model-selection.md` | Injected at session start; the two questions that pick a tier                                                               |
 | Review-sizing directive   | `directives/review-sizing.md`         | Injected at session start; how to size a review round and write the header                                                  |
@@ -229,9 +229,10 @@ carries a `model` or `effort` option beside its `agentType`. `Plan` and a
 and requires the header; `Explore` with no `model` is uncapped, and
 `agent-scope:fable-medium` is uncounted and refuses a header. An explicit
 `sonnet` or `haiku` model keeps a launch uncapped, the Fable tiers included,
-and runs that definition on the cheap model, since the pin hook rewrites
-neither alias and a `model` option outranks the frontmatter pin; a `fork` is
-the exception and stays counted whatever `model` it names. A launch names its
+and runs that definition on the cheap model, since a `model` option outranks
+the frontmatter pin. The pin hook removes a bare `sonnet` only on the two
+Sonnet tiers, which then run their own `claude-sonnet-5` pin. A `fork` is the
+exception and stays counted whatever `model` it names. A launch names its
 tier and omits `model`.
 
 In a `Workflow` script a capped stage is one `agent()` call at the top level,
