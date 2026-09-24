@@ -5,7 +5,7 @@ description: >-
   module, and review coverage past the capped budget. It returns claims
   for an Opus or Fable agent to judge, never verdicts. The tier is
   uncapped under the review gate.
-model: sonnet
+model: claude-sonnet-5
 effort: high
 ---
 

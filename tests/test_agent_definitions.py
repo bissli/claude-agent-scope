@@ -31,8 +31,8 @@ EXPECTED = {
         'claude-fable-5-1', 'xhigh', 'derive seat shared with opus-xhigh'),
     'fable-medium': (
         'claude-fable-5-1', 'medium', 'launches with no review-gate header'),
-    'sonnet-medium': ('sonnet', 'medium', 'uncapped under the review gate'),
-    'sonnet-high': ('sonnet', 'high', 'uncapped under the review gate'),
+    'sonnet-medium': ('claude-sonnet-5', 'medium', 'uncapped under the review gate'),
+    'sonnet-high': ('claude-sonnet-5', 'high', 'uncapped under the review gate'),
     'haiku': ('haiku', None, 'uncapped under the review gate'),
     }
 

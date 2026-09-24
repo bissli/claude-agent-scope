@@ -5,7 +5,7 @@ description: >-
   the edit pattern and the agent adds nothing. Use for checklist sweeps,
   scripted checks, bulk edits, extraction, and log or diff summaries. The
   tier is uncapped under the review gate.
-model: sonnet
+model: claude-sonnet-5
 effort: medium
 ---
 

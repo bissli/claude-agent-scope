@@ -23,6 +23,7 @@ directives from it, and the next session runs them.
 | Claude Code 2.1.219+         | The Opus tiers and the review gate |
 | Claude Code 2.1.255+         | The three Fable tiers              |
 | Access to `claude-opus-5-5`  | The three Opus tiers               |
+| Access to `claude-sonnet-5`  | The two Sonnet tiers               |
 | Access to `claude-fable-5-1` | The three Fable tiers              |
 
 The hooks run through `sh`, so Linux and macOS execute them. On Windows the
@@ -80,17 +81,17 @@ launch past the budget and names the fix.
 
 Claude Code registers plugin agents as `<plugin>:<agent>`, so a launch
 names `agent-scope:opus-high`, never `opus-high`. The Opus tiers pin the
-full model id `claude-opus-5-5` and the Fable tiers pin `claude-fable-5-1`,
-so the account needs access to those models. The sonnet and haiku tiers name
-the family alias, which resolves to the account's default for that family or
-to `ANTHROPIC_DEFAULT_SONNET_MODEL` and `ANTHROPIC_DEFAULT_HAIKU_MODEL` where
-those are set.
+full model id `claude-opus-5-5`, the Sonnet tiers pin `claude-sonnet-5`, and
+the Fable tiers pin `claude-fable-5-1`, so the account needs access to those
+models. The haiku tier names the family alias, which resolves to the
+account's default for that family or to `ANTHROPIC_DEFAULT_HAIKU_MODEL` where
+that is set.
 
 | Type                        | Model            | Effort | Budget               | Use                                                                                 |
 | --------------------------- | ---------------- | ------ | -------------------- | ----------------------------------------------------------------------------------- |
 | `agent-scope:haiku`         | haiku            | -      | uncapped             | Search, grep fan-out, classification, throwaway output                              |
-| `agent-scope:sonnet-medium` | sonnet           | medium | uncapped             | Checklist sweeps, scripted checks, bulk edits, extraction                           |
-| `agent-scope:sonnet-high`   | sonnet           | high   | uncapped             | Code, tests, edits, single-module debugging, review coverage past the capped budget |
+| `agent-scope:sonnet-medium` | claude-sonnet-5  | medium | uncapped             | Checklist sweeps, scripted checks, bulk edits, extraction                           |
+| `agent-scope:sonnet-high`   | claude-sonnet-5  | high   | uncapped             | Code, tests, edits, single-module debugging, review coverage past the capped budget |
 | `agent-scope:opus-medium`   | claude-opus-5-5  | medium | capped launch        | Verify with handed claims and lines; mechanical Opus checks                         |
 | `agent-scope:opus-high`     | claude-opus-5-5  | high   | capped launch        | Review, multi-file debugging, synthesis; the default Opus tier                      |
 | `agent-scope:opus-xhigh`    | claude-opus-5-5  | xhigh  | capped launch + seat | Derivation tasks; `derive:` required in header                                      |
