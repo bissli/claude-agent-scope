@@ -1450,6 +1450,11 @@ def multiplier(
                 placed = (
                     method.kind == 'name' and method.text in CONTINUATION_METHODS
                     and dot.kind == 'punct' and dot.text in {'.', '?.'})
+            is_array = opener is not None and tokens[opener].text == '['
+            if len(arrows) == 1 and is_array and not placed:
+                return (
+                    f'an array at line {tokens[opener].line} that is not written '
+                    'inline as the sole argument of parallel()')
             if len(arrows) > 1 or not placed:
                 return f'a function at line {tokens[arrows[-1]].line}'
         if opener is None:

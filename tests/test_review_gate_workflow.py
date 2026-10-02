@@ -586,8 +586,8 @@ def test_derive_on_a_stage_below_xhigh_is_denied(gate, tier):
         'a function'),
     (
         'await parallel([() => ' + stage(marked()) + '].flatMap(t => [t, t]))',
-        'a function'),
-    ('await args.x.parallel([() => ' + stage(marked()) + '])', 'a function'),
+        'an array'),
+    ('await args.x.parallel([() => ' + stage(marked()) + '])', 'an array'),
     (
         'await parallel(args.map(a => ' + stage(marked()) + '.then(v => v)))',
         'a function'),
@@ -639,6 +639,35 @@ def test_opus_stage_under_a_multiplier_is_denied(gate, script, fragment):
     out = run(gate, script)
     assert decision(out) == 'deny'
     assert 'may run more than once' in reason(out)
+    assert fragment in reason(out)
+    assert cycle_state(gate) is None
+
+
+@pytest.mark.parametrize(('script', 'fragment'), [
+    (
+        'const xs = [\n  () => ' + stage(marked()) + ',\n]\nawait parallel(xs)',
+        'an array at line 2 that is not written inline as the sole argument'),
+    (
+        'await parallel([() => ' + stage(marked()) + '], {limit: 2})',
+        'an array at line 2 that is not written inline as the sole argument'),
+    (
+        'await parallel([() => ' + stage(marked()) + '].concat(args.more))',
+        'an array at line 2 that is not written inline as the sole argument'),
+    ('const xs = [x => () => ' + stage(marked()) + ']', 'a function at line 2'),
+    ('await parallel([x => () => ' + stage(marked()) + '])', 'a function at line 2'),
+    ])
+def test_thunk_array_outside_parallel_names_the_array(gate, script, fragment):
+    """Verify a capped thunk in an array parallel() does not hold whole is
+    denied with the array's own line, and a curried thunk as a function.
+
+    Mutation: naming the thunk's line in place of the array's; falling back
+        to "a function" for a single thunk; dropping the one-arrow test, so
+        a curried thunk is blamed on its array; dropping the more-than-one
+        arrow test, so a curried thunk in parallel([...]) passes.
+    Oracle: hand-read line of the opening `[` (META is line 1).
+    """
+    out = run(gate, script)
+    assert decision(out) == 'deny'
     assert fragment in reason(out)
     assert cycle_state(gate) is None
 
