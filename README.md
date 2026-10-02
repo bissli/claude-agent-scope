@@ -241,9 +241,10 @@ own pins. A `fork` is the exception and stays counted whatever `model` it
 names. A launch names its tier and omits `model`.
 
 In a `Workflow` script a capped stage is one `agent()` call at the top level,
-a thunk in `parallel([...])`, or a `.then()`, `.catch()`, or `.finally()`
-continuation, with the header as the first text of its prompt literal. A
-capped stage inside `pipeline()`, a loop, or any other function is denied, as
+an arrow written inline in the `parallel([...])` array, or a `.then()`,
+`.catch()`, or `.finally()` continuation, with the header as the first text of
+its prompt literal. A capped stage inside `pipeline()`, a `.map()` callback, a
+loop, a thunk bound to a name, or any other function is denied, as
 is a saved workflow name, since the gate reads the script text. A cheap stage
 needs no header and may be mapped, looped, or repeated; it still names its tier
 as a literal `agentType` and carries no `model` or `effort` option. One

@@ -76,19 +76,24 @@ fails to split.
 prompt literal. A variable, a concatenation, a helper call, or a leading
 `${...}` hides it, and only the text before the first `${` is read:
 
-    agent(`<review-gate>
+    await parallel([
+      () => agent(`<review-gate>
     round: review
     opus-cap: 3
     </review-gate>
-    ${brief}`, {agentType: 'agent-scope:opus-high', label: 'review:bugs'})
+    ${brief}`, {agentType: 'agent-scope:opus-high', label: 'review:bugs'}),
+    ])
 
-A capped stage is one `agent()` call at the top level, a thunk in
-`parallel([...])`, or a `.then()`, `.catch()`, or `.finally()`
-continuation. Inside `pipeline()`, a mapped callback, a loop, or any
-other function the gate denies it, so fan-out runs on
-`agent-scope:sonnet-high` or `agent-scope:haiku`. Each stage names its
-tier as a literal `agentType` and carries no `model` or `effort`
-option. A script's capped stages reserve together, on the counters
+A capped stage is one `agent()` call at the top level, an arrow written
+inline in the `parallel([...])` array, or a `.then()`, `.catch()`, or
+`.finally()` continuation. The gate denies it anywhere else: inside
+`pipeline()`, a `.map()` callback even over a fixed list, a loop, a
+thunk bound to a name, or a helper function. N capped briefs are N
+inline arrows. A count known only at run time takes one arrow per slot
+up to a fixed bound, each returning `null` when its slot is empty, or
+runs on `agent-scope:sonnet-high` or `agent-scope:haiku`. Each stage
+names its tier as a literal `agentType` and carries no `model` or
+`effort` option. A script's capped stages reserve together, on the counters
 `Agent` launches use, and the gate refuses the batch whole: a script
 whose last stage overruns a cap moves no counter at all.
 

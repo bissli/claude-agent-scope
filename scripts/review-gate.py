@@ -68,9 +68,9 @@ Notes
   read as one Agent launch. The stage names its tier, prefix included
   and compared as written, as a literal agentType and carries no model
   or effort option; a capped stage opens its prompt with a literal
-  carrying the header, and sits where it runs once: the top level, a
-  thunk in parallel([...]), or a .then(), .catch(), or .finally()
-  continuation. A loop, a pipeline stage, a mapped callback, or any
+  carrying the header, and sits where it runs once: the top level, an
+  arrow written inline in the parallel([...]) array, or a .then(),
+  .catch(), or .finally() continuation. A loop, a pipeline stage, a mapped callback, or any
   other function around a capped stage
   is denied, as is a script that aliases or declares agent, binds
   parallel, defines then, calls workflow(), or names eval, Function,
@@ -1807,8 +1807,9 @@ def gate_workflow(hook_input: dict[str, Any]) -> dict[str, Any] | None:
             return deny(
                 f'review-gate: {where}: a capped stage inside {stage.multiplied} '
                 'may run more than once. Write each capped stage as one agent() '
-                'call at the top level, a thunk in parallel([...]), or a .then(), '
-                '.catch(), or .finally() continuation; fan-out runs on '
+                'call at the top level, an arrow written inline in the '
+                'parallel([...]) array, or a .then(), .catch(), or .finally() '
+                'continuation; fan-out runs on '
                 f'{TIER_PREFIX}sonnet-high or {TIER_PREFIX}haiku.',
                 site)
         if is_capped and stage.prefix is None:
