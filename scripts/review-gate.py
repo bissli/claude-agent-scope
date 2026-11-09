@@ -26,10 +26,11 @@ Notes
   and a headerless Agent launch is allowed and takes no slot.
 - Only a capped launch takes a slot: an Opus or Fable tier, or a type
   that runs on the main-loop model. An explicit haiku or sonnet model,
-  a sonnet or haiku tier, and an Explore agent that names no model sit
-  outside the caps, in any quantity. Any other named type with no model
-  is capped, and so is a fork whatever model it names: the runtime
-  ignores a fork's model and runs it on the main-loop model.
+  a sonnet or haiku tier, an Explore agent that names no model, and
+  web-fetch with any model but fable, since its one tool is WebFetch,
+  sit outside the caps, in any quantity. Any other named type with no
+  model is capped, and so is a fork whatever model it names: the
+  runtime ignores a fork's model and runs it on the main-loop model.
 - opus-cap is the ceiling on capped launches per round: 3, 6, or 9, one
   of three values and not a free number. The first counted review,
   verify, or swarm agent of a cycle fixes it; those three rounds then
@@ -145,6 +146,7 @@ STAGE_TIERS_TEXT = ', '.join(
 INHERITING_TYPES = {'', 'general-purpose'}
 FORK_TYPE = 'fork'
 EXPLORE_TYPE = 'explore'
+WEB_FETCH_TYPE = 'web-fetch'
 UNCAPPED_MODELS = {'haiku', 'sonnet'}
 KEPT_CYCLES = 8
 CHUNK_BYTES = 65_536
@@ -540,9 +542,12 @@ def is_uncapped(tool_input: dict[str, Any]) -> bool:
     -------
     bool
         True for an explicit haiku or sonnet model, for a sonnet, haiku,
-        or on-request tier under the plugin prefix, and for an Explore
-        agent that names no model; an uncapped launch is allowed in any
-        quantity. An Explore agent with any other model is counted,
+        or on-request tier under the plugin prefix, for an Explore
+        agent that names no model, and for web-fetch whatever model it
+        names, since its one tool is WebFetch and it cannot do review
+        work; an uncapped launch is allowed in any quantity. A user or
+        project agent named web-fetch passes too. An Explore agent with
+        any other model is counted,
         because the pin hook strips an Opus alias and the launch then
         inherits the main-loop Opus model. A fork is counted whatever model it names:
         the runtime ignores a fork's model and runs it on the main-loop
@@ -552,6 +557,8 @@ def is_uncapped(tool_input: dict[str, Any]) -> bool:
     scoped, name = split_type(str(tool_input.get('subagent_type') or '').lower())
     if not scoped and name == FORK_TYPE:
         return False
+    if not scoped and name == WEB_FETCH_TYPE:
+        return True
     if model in UNCAPPED_MODELS or (scoped and name in UNCOUNTED_TIERS):
         return True
     return not scoped and name == EXPLORE_TYPE and not model

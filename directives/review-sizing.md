@@ -10,7 +10,8 @@ Three terms carry the accounting. A *capped tier* is
 `agent-scope:fable-xhigh`. A *deriving tier* is `agent-scope:opus-xhigh`
 or `agent-scope:fable-xhigh`. A *capped launch* is one on a capped
 tier, or on any type that runs on the main-loop model - `Plan` and a
-`fork` whatever `model` it names among them.
+`fork` whatever `model` it names among them. A `web-fetch` launch is
+uncapped and needs no header: its one tool is WebFetch.
 
 Write the briefs first, then merge every pair one agent could hold in
 one read. What remains is the capped launch count. Overlap survives the
