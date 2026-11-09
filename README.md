@@ -232,7 +232,8 @@ of the nine tiers, a capped launch with no header, and a Workflow stage that
 carries a `model` or `effort` option beside its `agentType`. `Plan` and a
 `fork` run on the main-loop model, so the gate counts them as capped launches
 and requires the header; `Explore` with no `model` is uncapped, `web-fetch`
-is uncapped with any `model` but `fable`, since its one tool is WebFetch, and
+is uncapped with any `model` option the gate allows, since its one tool is
+WebFetch, and
 `agent-scope:fable-medium` is uncounted and refuses a header. An explicit
 `sonnet` or `haiku` model keeps a launch uncapped, the Fable tiers included,
 and runs that definition on the cheap model, since a `model` option outranks

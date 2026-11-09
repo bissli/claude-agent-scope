@@ -728,11 +728,13 @@ def test_web_fetch_passes_unmarked_past_a_spent_cap(gate, model):
     """Verify web-fetch takes no slot and needs no header, whatever model.
 
     Mutation: dropping the web-fetch exemption, matching it only when no
-        model is named, or matching a prefixed name such as
-        other:web-fetch.
+        model is named, matching a prefixed name such as other:web-fetch,
+        or moving the fable-model deny below the exemption, which would
+        run Fable uncapped.
     Oracle: after three capped swarm launches spend opus-cap 3, an
         unmarked web-fetch is allowed and the swarm counter stays at 3,
-        while an unmarked other:web-fetch is denied.
+        while an unmarked other:web-fetch and a web-fetch naming fable
+        are denied.
     """
     capped = agent_input(header('swarm'))
     assert all(gate.gate_agent(capped) is None for _ in range(3))
@@ -741,6 +743,8 @@ def test_web_fetch_passes_unmarked_past_a_spent_cap(gate, model):
     assert stored_cycle(gate)['swarm'] == 3
     other = agent_input('Summarize the page.', subagent_type='other:web-fetch')
     assert decision(gate.gate_agent(other)) == 'deny'
+    fable = agent_input('Summarize the page.', model='fable', subagent_type='web-fetch')
+    assert 'drop the fable model option' in reason(gate.gate_agent(fable))
 
 
 def test_synthesize_needs_no_opus_cap_and_holds_two_opus_per_cycle(gate):
