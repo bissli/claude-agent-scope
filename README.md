@@ -22,10 +22,10 @@ directives from it, and the next session runs them.
 | `python3` 3.10 or later       | Both hooks                         |
 | Claude Code 2.1.219+          | The Opus tiers and the review gate |
 | Claude Code 2.1.255+          | The three Fable tiers              |
-| Access to `claude-opus-5-5`   | The three Opus tiers               |
-| Access to `claude-sonnet-5-5` | The two Sonnet tiers               |
-| Access to `claude-haiku-5-5`  | The haiku tier                     |
-| Access to `claude-fable-5-1`  | The three Fable tiers              |
+| Access to the `opus` alias    | The three Opus tiers               |
+| Access to the `sonnet` alias  | The two Sonnet tiers               |
+| Access to the `haiku` alias   | The haiku tier                     |
+| Access to the `fable` alias   | The three Fable tiers              |
 
 The hooks run through `sh`, so Linux and macOS execute them. On Windows the
 nine tier agents register and the hooks do not run. Without `python3` on
@@ -35,10 +35,9 @@ injects them.
 
 An account without Fable access cannot launch a Fable tier; the launch fails
 at the model, and no tier substitutes for it. The other six tiers are
-unaffected. The 0.2.x releases pin the model ids the Anthropic API uses and
-run on Claude Code 2.1.263. A Bedrock or Vertex deployment names its models
-differently, so the pinned ids need a mapping to that provider's names before
-the Opus and Fable tiers resolve.
+unaffected. The tiers name family aliases, so on Bedrock or Vertex each tier
+runs that provider's model for its family, or the model an
+`ANTHROPIC_DEFAULT_*_MODEL` setting names.
 
 ## What changes in a session
 
@@ -71,7 +70,7 @@ launch past the budget and names the fix.
 | Component                 | Path                                  | What it does                                                                                                                |
 | ------------------------- | ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
 | Nine tier definitions     | `agents/*.md`                         | Pin model and effort; registered as `agent-scope:<tier>`                                                                    |
-| Model pin hook            | `scripts/pin-subagent-model.py`       | Strips bare `opus` and a tier's own bare `sonnet`/`haiku` so the pin wins; pins `Explore` to haiku when no model is named   |
+| Model pin hook            | `scripts/pin-subagent-model.py`       | Pins `Explore` to haiku when no model is named                                                                              |
 | Review gate               | `scripts/review-gate.py`              | PreToolUse hook on `Agent` and `Workflow`; caps Opus and Fable launches per round; requires a header on every capped launch |
 | Model-selection directive | `directives/agent-model-selection.md` | Injected at session start; the two questions that pick a tier                                                               |
 | Review-sizing directive   | `directives/review-sizing.md`         | Injected at session start; how to size a review round and write the header                                                  |
@@ -81,24 +80,23 @@ launch past the budget and names the fix.
 ## The tiers
 
 Claude Code registers plugin agents as `<plugin>:<agent>`, so a launch
-names `agent-scope:opus-high`, never `opus-high`. The Opus tiers pin the
-full model id `claude-opus-5-5`, the Sonnet tiers pin `claude-sonnet-5-5`,
-the haiku tier pins `claude-haiku-5-5`, and the Fable tiers pin
-`claude-fable-5-1`, so the account needs access to those models. The
-`ANTHROPIC_DEFAULT_*_MODEL` settings never move a tier: they decide only what
-a bare family alias means outside the tiers.
+names `agent-scope:opus-high`, never `opus-high`. Each tier names a family
+alias (`opus`, `sonnet`, `haiku`, `fable`) and pins its own effort, so a
+tier runs the organization's default model for its family at the tier's
+effort. An `ANTHROPIC_DEFAULT_*_MODEL` setting, where set, decides the
+model for its family in place of the organization default.
 
 | Type                        | Model             | Effort | Budget               | Use                                                                                 |
 | --------------------------- | ----------------- | ------ | -------------------- | ----------------------------------------------------------------------------------- |
-| `agent-scope:haiku`         | claude-haiku-5-5  | -      | uncapped             | Search, grep fan-out, classification, throwaway output                              |
-| `agent-scope:sonnet-medium` | claude-sonnet-5-5 | medium | uncapped             | Checklist sweeps, scripted checks, bulk edits, extraction                           |
-| `agent-scope:sonnet-high`   | claude-sonnet-5-5 | medium | uncapped             | Code, tests, edits, single-module debugging, review coverage past the capped budget |
-| `agent-scope:opus-medium`   | claude-opus-5-5   | medium | capped launch        | Verify with handed claims and lines; mechanical Opus checks                         |
-| `agent-scope:opus-high`     | claude-opus-5-5   | high   | capped launch        | Review, multi-file debugging, synthesis; the default Opus tier                      |
-| `agent-scope:opus-xhigh`    | claude-opus-5-5   | xhigh  | capped launch + seat | Derivation tasks; `derive:` required in header                                      |
-| `agent-scope:fable-high`    | claude-fable-5-1  | high   | capped launch        | Review, verdict, or synthesis on material that fails to split; no `derive:`         |
-| `agent-scope:fable-xhigh`   | claude-fable-5-1  | xhigh  | capped launch + seat | A derivation that fails to split; `derive:` required in header                      |
-| `agent-scope:fable-medium`  | claude-fable-5-1  | medium | uncounted            | On request only: writing a document, a guide, or a skill file; no header, no stage  |
+| `agent-scope:haiku`         | haiku             | -      | uncapped             | Search, grep fan-out, classification, throwaway output                              |
+| `agent-scope:sonnet-medium` | sonnet            | medium | uncapped             | Checklist sweeps, scripted checks, bulk edits, extraction                           |
+| `agent-scope:sonnet-high`   | sonnet            | medium | uncapped             | Code, tests, edits, single-module debugging, review coverage past the capped budget |
+| `agent-scope:opus-medium`   | opus              | medium | capped launch        | Verify with handed claims and lines; mechanical Opus checks                         |
+| `agent-scope:opus-high`     | opus              | high   | capped launch        | Review, multi-file debugging, synthesis; the default Opus tier                      |
+| `agent-scope:opus-xhigh`    | opus              | xhigh  | capped launch + seat | Derivation tasks; `derive:` required in header                                      |
+| `agent-scope:fable-high`    | fable             | high   | capped launch        | Review, verdict, or synthesis on material that fails to split; no `derive:`         |
+| `agent-scope:fable-xhigh`   | fable             | xhigh  | capped launch + seat | A derivation that fails to split; `derive:` required in header                      |
+| `agent-scope:fable-medium`  | fable             | medium | uncounted            | On request only: writing a document, a guide, or a skill file; no header, no stage  |
 
 A *capped tier* is one of the three Opus definitions or the two capped Fable
 ones; a *deriving tier* is `opus-xhigh` or `fable-xhigh`. A launch on a
@@ -225,8 +223,8 @@ review-gate: name agent-scope:haiku, not haiku; the tiers are the agent-scope pl
 ```
 
 The gate also denies a `fable` model option on any type, the three Fable
-tiers included: an invocation-level model overrides the definitions' version
-pins, and the `fable` family alias is configurable and can change over time.
+tiers included: an invocation-level model overrides the model a tier
+definition names.
 It denies `general-purpose`, an omitted type, a prefixed name that is not one
 of the nine tiers, a capped launch with no header, and a Workflow stage that
 carries a `model` or `effort` option beside its `agentType`. `Plan` and a
@@ -237,10 +235,8 @@ WebFetch, and
 `agent-scope:fable-medium` is uncounted and refuses a header. An explicit
 `sonnet` or `haiku` model keeps a launch uncapped, the Fable tiers included,
 and runs that definition on the cheap model, since a `model` option outranks
-the frontmatter pin. The pin hook removes a bare `sonnet` only on the two
-Sonnet tiers and a bare `haiku` only on the haiku tier, which then run their
-own pins. A `fork` is the exception and stays counted whatever `model` it
-names. A launch names its tier and omits `model`.
+the frontmatter pin. A `fork` is the exception and stays counted whatever
+`model` it names. A launch names its tier and omits `model`.
 
 In a `Workflow` script a capped stage is one `agent()` call at the top level,
 an arrow written inline in the `parallel([...])` array, or a `.then()`,

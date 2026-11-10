@@ -76,6 +76,6 @@ medium rung, so a brief that fails to split is
 
 The gate denies `general-purpose`, an omitted type, a tier name without
 its prefix, and a `fable` model option on any type: that option outranks
-the Fable tiers' version pins, and the `fable` alias can change. A
+the model a tier definition names. A
 `Workflow` stage names one of the eight routing tiers as a literal
 `agentType`, and the gate denies an unpinned stage.

@@ -12,7 +12,7 @@ description: >-
   launch, and no later launch can change a fixed cap. Supply a review-gate
   header and derive: <kind> in every round, synthesize included. Use
   round: swarm outside review work. Omit the model option.
-model: claude-fable-5-1
+model: fable
 effort: xhigh
 ---
 

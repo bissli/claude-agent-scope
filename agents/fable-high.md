@@ -11,7 +11,7 @@ description: >-
   launch and takes no derive seat. Open every launch with a review-gate
   header: opus-cap in the review, verify, and swarm rounds, and round:
   swarm outside a review. Omit the model option.
-model: claude-fable-5-1
+model: fable
 effort: high
 ---
 

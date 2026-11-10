@@ -713,14 +713,30 @@ def test_other_models_are_counted_as_opus(gate, kwargs):
 
     Mutation: substring matching on the alias ('sonnet' in 'notsonnet'),
         treating an explicit opus as outside the cap, exempting Explore
-        by type alone when the pin hook strips its opus alias and it then
-        runs on the main-loop Opus, or exempting an Opus tier or an
-        inheriting named type such as Plan.
+        by type alone when its opus alias runs it on Opus, or exempting
+        an Opus tier or an inheriting named type such as Plan.
     Oracle: the fourth launch at opus-cap 3 is denied.
     """
     payload = agent_input(header(), **kwargs)
     assert all(gate.gate_agent(payload) is None for _ in range(3))
     assert decision(gate.gate_agent(payload)) == 'deny'
+
+
+@pytest.mark.parametrize(
+    'tier', ['agent-scope:sonnet-high', 'agent-scope:haiku'])
+def test_an_opus_model_on_a_cheap_tier_takes_a_slot(gate, tier):
+    """Verify a cheap tier launched with model opus is capped like Opus.
+
+    Mutation: exempting a cheap tier by type alone, whatever model it
+        names, which runs unlimited Opus launches past the cap.
+    Oracle: the fourth launch at opus-cap 3 is denied, and an unmarked
+        launch is denied for want of a header.
+    """
+    payload = agent_input(header(), subagent_type=tier, model='opus')
+    assert all(gate.gate_agent(payload) is None for _ in range(3))
+    assert decision(gate.gate_agent(payload)) == 'deny'
+    unmarked = agent_input('task', subagent_type=tier, model='opus')
+    assert decision(gate.gate_agent(unmarked)) == 'deny'
 
 
 @pytest.mark.parametrize('model', [None, 'opus'])
@@ -1691,10 +1707,9 @@ def test_a_fable_model_option_is_denied_even_beside_its_tier(gate):
     """Verify fable is reachable only through the tier's frontmatter pin.
 
     Mutation: exempting the fable tier from the model check, or
-        explaining the rule by the account default rather than the pin.
-        An invocation-level model overrides the definition's version pin,
-        and the fable family alias is configurable, so the launch could
-        land on a version the tier never named.
+        explaining the rule by the account default rather than the
+        tier definition. An invocation-level model overrides the model
+        a tier definition names.
     Oracle: model fable is denied on an ordinary tier and on each Fable
         tier alike, every denial naming both Fable tiers; fable-xhigh
         with no model option then seats 1/1.
@@ -1706,7 +1721,7 @@ def test_a_fable_model_option_is_denied_even_beside_its_tier(gate):
         output = gate.gate_agent(launch)
         assert decision(output) == 'deny'
         assert 'agent-scope:fable-high or agent-scope:fable-xhigh' in reason(output)
-        assert 'version pin' in reason(output)
+        assert 'tier definition' in reason(output)
         assert 'default' not in reason(output)
     assert not state_file(gate).exists()
     output = gate.gate_agent(fable_xhigh('review', '6'))

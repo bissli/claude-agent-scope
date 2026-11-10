@@ -20,20 +20,20 @@ FIELDS = ('name', 'description', 'model', 'effort')
 CAPPED_TIERS = ('opus-medium', 'opus-high', 'opus-xhigh', 'fable-high', 'fable-xhigh')
 DERIVING_TIERS = ('opus-xhigh', 'fable-xhigh')
 EXPECTED = {
-    'opus-medium': ('claude-opus-5-5', 'medium', 'Counts as a capped launch'),
-    'opus-high': ('claude-opus-5-5', 'high', 'Three per round is the default cap'),
+    'opus-medium': ('opus', 'medium', 'Counts as a capped launch'),
+    'opus-high': ('opus', 'high', 'Three per round is the default cap'),
     'opus-xhigh': (
-        'claude-opus-5-5', 'xhigh', 'derive seat shared with fable-xhigh'),
+        'opus', 'xhigh', 'derive seat shared with fable-xhigh'),
     'fable-high': (
-        'claude-fable-5-1', 'high',
+        'fable', 'high',
         'Counts as a capped launch and takes no derive seat'),
     'fable-xhigh': (
-        'claude-fable-5-1', 'xhigh', 'derive seat shared with opus-xhigh'),
+        'fable', 'xhigh', 'derive seat shared with opus-xhigh'),
     'fable-medium': (
-        'claude-fable-5-1', 'medium', 'launches with no review-gate header'),
-    'sonnet-medium': ('claude-sonnet-5-5', 'medium', 'uncapped under the review gate'),
-    'sonnet-high': ('claude-sonnet-5-5', 'medium', 'uncapped under the review gate'),
-    'haiku': ('claude-haiku-5-5', None, 'uncapped under the review gate'),
+        'fable', 'medium', 'launches with no review-gate header'),
+    'sonnet-medium': ('sonnet', 'medium', 'uncapped under the review gate'),
+    'sonnet-high': ('sonnet', 'medium', 'uncapped under the review gate'),
+    'haiku': ('haiku', None, 'uncapped under the review gate'),
     }
 
 
@@ -206,8 +206,8 @@ def test_definition_frontmatter_parses_and_pins_model_and_effort(stem):
     Mutation: a colon-space inside an unquoted description or a dedented
         continuation line, either of which leaves the file registered
         under its name with no field read; a name that differs from the
-        file stem; a dropped or aliased model pin, which collapses onto
-        the main-loop model; an effort on the haiku definition; or prose
+        file stem; a dropped model pin, which falls back to the
+        main-loop model; an effort on the haiku definition; or prose
         that has become a further top-level key.
     Oracle: a strict YAML load, then the hand-listed model and effort
         per tier.

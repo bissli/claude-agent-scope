@@ -60,8 +60,7 @@ Notes
   review declares round swarm, a fourth round counted and capped like
   review on its own counter. A cheap launch may omit the header, and a
   fable model option is always denied: an invocation-level model
-  outranks the version pin in the Fable definitions' frontmatter, and
-  the fable family alias is configurable and can change over time.
+  outranks the model a tier definition names.
 - Silence lets the call continue; a JSON deny blocks it. An allowed
   deriving launch prints a JSON systemMessage naming the seat, the
   kind, and the label; the user sees it and the call continues.
@@ -542,14 +541,13 @@ def is_uncapped(tool_input: dict[str, Any]) -> bool:
     -------
     bool
         True for an explicit haiku or sonnet model, for a sonnet, haiku,
-        or on-request tier under the plugin prefix, for an Explore agent
+        or on-request tier under the plugin prefix or an Explore agent
         that names no model, and for web-fetch whatever model it names,
         since its one tool is WebFetch and it cannot do review work. A
         user or project agent named web-fetch passes too. An uncapped
         launch is allowed in any quantity. An Explore agent with any
-        other model is counted, because the pin hook strips an Opus
-        alias and the launch then inherits the main-loop Opus model. A
-        fork is counted whatever model it names: the runtime ignores a
+        other model is counted, because an Opus alias runs it on Opus.
+        A fork is counted whatever model it names: the runtime ignores a
         fork's model and runs it on the main-loop model. Type and model
         names compare lowercased. A fable model is not screened here:
         gate_agent denies it before the first call.
@@ -560,9 +558,13 @@ def is_uncapped(tool_input: dict[str, Any]) -> bool:
         return False
     if not scoped and name == WEB_FETCH_TYPE:
         return True
-    if model in UNCAPPED_MODELS or (scoped and name in UNCOUNTED_TIERS):
+    if model in UNCAPPED_MODELS:
         return True
-    return not scoped and name == EXPLORE_TYPE and not model
+    if model:
+        return False
+    if scoped:
+        return name in UNCOUNTED_TIERS
+    return name == EXPLORE_TYPE
 
 
 @dataclasses.dataclass
@@ -869,8 +871,7 @@ def gate_agent(hook_input: dict[str, Any]) -> dict[str, Any] | None:
             'review-gate: drop the fable model option and launch '
             f'{FABLE_TIERS_TEXT} instead, or {REQUEST_TIERS_TEXT} where a user '
             'asked for Fable at medium. An invocation-level model overrides the '
-            "definitions' version pins, and the fable family alias is configurable "
-            'and can change.',
+            'model a tier definition names.',
             event)
     if not scoped and tier_name in INHERITING_TYPES:
         return deny(

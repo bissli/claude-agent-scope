@@ -9,7 +9,7 @@ description: >-
   on it. It launches with no review-gate header, and counts against no
   cap and no derive seat. Review, verdict, and synthesis work on material
   that fails to split is agent-scope:fable-high. Omit the model option.
-model: claude-fable-5-1
+model: fable
 effort: medium
 ---
 
